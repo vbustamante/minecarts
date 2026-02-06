@@ -6,7 +6,11 @@ export default defineConfig({
   plugins: [vue(), tailwindcss()],
   server: {
     proxy: {
-      "/api": "http://localhost:3000",
+      "/api": {
+        target: "http://localhost:3001",
+        rewrite: (path) => path.replace(/^\/api/, ""),
+        ws: true,
+      },
     },
   },
 })
