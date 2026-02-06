@@ -15,6 +15,19 @@ pub struct RailwayService {
     pub project_id: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateServiceRequest {
+    pub name: String,
+    pub project_id: String,
+    pub image: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateServiceRequest {
+    pub name: Option<String>,
+    pub icon: Option<String>,
+}
+
 #[derive(Deserialize)]
 struct ProjectData {
     project: ProjectNode,
@@ -33,6 +46,18 @@ struct ServicesConnection {
 #[derive(Deserialize)]
 struct ServiceEdge {
     node: RailwayService,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ServiceCreateData {
+    service_create: RailwayService,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ServiceUpdateData {
+    service_update: RailwayService,
 }
 
 impl RailwayService {
@@ -78,5 +103,101 @@ impl RailwayService {
             .collect();
 
         Ok(services)
+    }
+
+    pub async fn create(access_token: String, req: CreateServiceRequest) -> Result<Self, reqwest::Error> {
+        let body = serde_json::json!({
+            "query": r#"mutation serviceCreate($input: ServiceCreateInput!) {
+                serviceCreate(input: $input) {
+                    id
+                    name
+                    icon
+                    createdAt
+                    projectId
+                }
+            }"#,
+            "variables": {
+                "input": {
+                    "projectId": req.project_id,
+                    "name": req.name,
+                    "source": { "image": req.image },
+                }
+            }
+        });
+
+        let client = Client::new();
+
+        let res: GraphQLResponse<ServiceCreateData> = client
+            .post(GRAPHQL_URL)
+            .bearer_auth(access_token)
+            .json(&body)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
+
+        Ok(res.data.service_create)
+    }
+
+    pub async fn update(access_token: String, id: &str, req: UpdateServiceRequest) -> Result<Self, reqwest::Error> {
+        let mut input = serde_json::Map::new();
+        if let Some(name) = &req.name {
+            input.insert("name".into(), serde_json::Value::String(name.clone()));
+        }
+        if let Some(icon) = &req.icon {
+            input.insert("icon".into(), serde_json::Value::String(icon.clone()));
+        }
+
+        let body = serde_json::json!({
+            "query": r#"mutation serviceUpdate($id: String!, $input: ServiceUpdateInput!) {
+                serviceUpdate(id: $id, input: $input) {
+                    id
+                    name
+                    icon
+                    createdAt
+                    projectId
+                }
+            }"#,
+            "variables": {
+                "id": id,
+                "input": input,
+            }
+        });
+
+        let client = Client::new();
+
+        let res: GraphQLResponse<ServiceUpdateData> = client
+            .post(GRAPHQL_URL)
+            .bearer_auth(access_token)
+            .json(&body)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
+
+        Ok(res.data.service_update)
+    }
+
+    pub async fn delete(access_token: String, id: &str) -> Result<(), reqwest::Error> {
+        let body = serde_json::json!({
+            "query": r#"mutation serviceDelete($id: String!) {
+                serviceDelete(id: $id)
+            }"#,
+            "variables": { "id": id }
+        });
+
+        let client = Client::new();
+
+        client
+            .post(GRAPHQL_URL)
+            .bearer_auth(access_token)
+            .json(&body)
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
     }
 }

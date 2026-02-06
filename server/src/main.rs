@@ -7,7 +7,7 @@ mod state;
 use std::sync::Arc;
 
 use axum::Router;
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use state::{AppState, OAuthConfig};
 
 pub struct ServiceConfig {
@@ -38,9 +38,13 @@ async fn main() {
     let server_host = config.server_host.clone();
     let state = Arc::new(AppState::new(config));
 
+    let services_router = Router::new()
+        .route("/", get(routes::services::list).post(routes::services::create))
+        .route("/{id}", put(routes::services::update).delete(routes::services::delete));
+
     let app = Router::new()
         .route("/projects", get(routes::projects::list))
-        .route("/services/{project_id}", get(routes::services::list))
+        .nest("/projects/{project_id}/services", services_router)
         .route("/auth/login", get(routes::auth::login))
         .route("/auth/callback", get(routes::auth::callback))
         .route("/auth/me", get(routes::auth::me))
