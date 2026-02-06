@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use crate::railway::auth::RailwayUser;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Container {
@@ -42,4 +43,9 @@ pub enum EventAction {
     Created,
     Updated,
     Deleted,
+}
+
+#[derive(Debug, Clone)]
+pub struct Session {
+    pub user: RailwayUser,
 }

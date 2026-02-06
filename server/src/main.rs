@@ -1,6 +1,7 @@
 mod models;
 mod routes;
 mod state;
+mod railway;
 
 use std::sync::Arc;
 
@@ -19,6 +20,10 @@ async fn main() {
         .route("/containers/{id}", put(routes::containers::update))
         .route("/containers/{id}", delete(routes::containers::delete))
         .route("/ws", get(routes::ws::handler))
+        .route("/auth/login", get(routes::auth::login))
+        .route("/auth/callback", get(routes::auth::callback))
+        .route("/auth/me", get(routes::auth::me))
+        .route("/auth/logout", post(routes::auth::logout))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3001").await.unwrap();

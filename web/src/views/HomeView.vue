@@ -11,13 +11,30 @@
     </button>
 
     <CreateContainerModal :open="showCreate" @close="showCreate = false" />
+
+    <ul>
+      <li v-for="(c, index) in containers" :key="index">{{c.name}}</li>
+    </ul>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import {computed, onMounted, ref} from "vue";
 import { Icon } from "@iconify/vue";
 import CreateContainerModal from "../components/CreateContainerModal.vue";
+import {useContainerStore} from "../stores";
+import {connectWebSocket} from "../api/ws.ts";
+
+const containersStore = useContainerStore();
+
+const containers = computed(() => Object.values(containersStore.containers));
 
 const showCreate = ref(false);
+
+
+onMounted(() => {
+  connectWebSocket((ev) => {
+    containersStore.handleEvent(ev);
+  })
+})
 </script>

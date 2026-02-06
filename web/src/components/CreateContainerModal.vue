@@ -53,7 +53,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/vue";
-import { useContainerStore } from "../stores/containers";
+import { useContainerStore } from "../stores";
 
 defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: [] }>();
