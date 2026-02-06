@@ -2,6 +2,7 @@ export interface User {
   id: string;
   name: string | null;
   email: string | null;
+  picture?: string | null;
 }
 
 export const loginUrl = "/api/auth/login";

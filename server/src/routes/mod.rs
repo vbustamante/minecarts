@@ -1,3 +1,3 @@
 pub mod auth;
-pub mod containers;
-pub mod ws;
+pub mod projects;
+pub mod services;

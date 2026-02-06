@@ -1,2 +1,3 @@
 export { useAuthStore } from "./auth";
-export { useContainerStore } from "./containers";
+export { useProjectStore } from "./projects";
+export { useServiceStore } from "./services";

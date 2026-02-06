@@ -7,28 +7,32 @@ use crate::state::OAuthConfig;
 pub struct RailwayUser {
     pub sub: String,
     pub name: String,
+    pub picture: Option<String>,
     pub email: String,
     pub email_verified: bool,
 }
 
-#[derive(Deserialize, Debug)]
-struct TokenResponse {
-    access_token: String,
-    // refresh_token: String,
-    // expires_in: u64,
-    // id_token: String,
-    // scope: String,
+#[derive(Deserialize, Debug, Clone)]
+pub struct RailwayAuthData {
+    pub access_token: String,
+    refresh_token: String,
+    expires_in: u64,
+    id_token: String,
+    scope: String,
 }
 
-pub fn build_auth_url(config: &OAuthConfig, csrf_state: &str) -> String {
-    let params = [
+pub fn build_auth_url(config: &OAuthConfig, csrf_state: &str, ask_for_projects: bool) -> String {
+    let mut params = Vec::from([
         ("response_type", "code"),
         ("client_id", config.client_id.as_str()),
         ("redirect_uri", config.redirect_uri.as_str()),
         ("scope", "openid profile email offline_access project:member"),
-        ("state", csrf_state),
-        ("prompt", "consent"),
-    ];
+        ("state", csrf_state)
+    ]);
+
+    if ask_for_projects {
+        params.push(("prompt", "consent"));
+    }
 
     let query = params
         .iter()
@@ -43,7 +47,7 @@ pub async fn exchange_code(
     client: &Client,
     config: &OAuthConfig,
     code: &str,
-) -> Result<String, reqwest::Error> {
+) -> Result<RailwayAuthData, reqwest::Error> {
     let token_res = client
         .post("https://backboard.railway.com/oauth/token")
         .basic_auth(&config.client_id, Some(&config.client_secret))
@@ -56,8 +60,28 @@ pub async fn exchange_code(
         .await?
         .error_for_status()?;
 
-    let token: TokenResponse = token_res.json().await?;
-    Ok(token.access_token)
+    let token: RailwayAuthData = token_res.json().await?;
+    Ok(token)
+}
+
+pub async fn refresh_token(
+    client: &Client,
+    config: &OAuthConfig,
+    refresh_token: &str,
+) -> Result<RailwayAuthData, reqwest::Error> {
+    let token_res = client
+        .post("https://backboard.railway.com/oauth/token")
+        .basic_auth(&config.client_id, Some(&config.client_secret))
+        .form(&[
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh_token),
+        ])
+        .send()
+        .await?
+        .error_for_status()?;
+
+    let token: RailwayAuthData = token_res.json().await?;
+    Ok(token)
 }
 
 pub async fn fetch_user(
