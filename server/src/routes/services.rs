@@ -32,6 +32,7 @@ pub async fn list(
 #[derive(Deserialize, Debug, Clone)]
 pub struct CreateServiceRequest {
     name: String,
+    icon: Option<String>,
 }
 
 pub async fn create(
@@ -43,6 +44,7 @@ pub async fn create(
         project_id,
         image: "hello-world".to_string(),
         name: req.name,
+        icon: req.icon,
     };
     RailwayService::create(session.railway_auth.access_token, req)
         .await

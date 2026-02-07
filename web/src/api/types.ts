@@ -1,4 +1,5 @@
 export interface DeploymentInfo {
+  status: string | null;
   instances: { id: string }[];
   image: string | null;
 }
@@ -15,6 +16,7 @@ export interface Service {
 
 export interface CreateServiceRequest {
   name: string;
+  icon?: string;
 }
 
 export interface UpdateServiceRequest {

@@ -27,6 +27,7 @@ pub struct ServiceWithDeployment {
 
 #[derive(Serialize)]
 pub struct DeploymentInfo {
+    pub status: Option<String>,
     pub instances: Vec<Instance>,
     pub image: Option<String>,
 }
@@ -71,6 +72,7 @@ struct DeploymentEdge {
 #[serde(rename_all = "camelCase")]
 struct Deployment {
     service_id: String,
+    status: Option<String>,
     instances: Vec<Instance>,
     meta: Option<DeploymentMeta>,
 }
@@ -85,6 +87,7 @@ pub struct CreateServiceRequest {
     pub name: String,
     pub project_id: String,
     pub image: String,
+    pub icon: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -173,6 +176,7 @@ impl RailwayService {
                 Some(ServiceWithDeployment {
                     service,
                     deployment: DeploymentInfo {
+                        status: deployment.status,
                         instances: deployment.instances,
                         image: deployment.meta.and_then(|m| m.image),
                     },
@@ -184,15 +188,17 @@ impl RailwayService {
     }
 
     pub async fn create(access_token: String, req: CreateServiceRequest) -> Result<Self, reqwest::Error> {
+        let mut input = serde_json::json!({
+            "projectId": req.project_id,
+            "name": req.name,
+            "source": { "image": req.image },
+        });
+        if let Some(icon) = &req.icon {
+            input["icon"] = serde_json::Value::String(icon.clone());
+        }
         let body = serde_json::json!({
             "query": include_str!("graphql/service_create.gql"),
-            "variables": {
-                "input": {
-                    "projectId": req.project_id,
-                    "name": req.name,
-                    "source": { "image": req.image },
-                }
-            }
+            "variables": { "input": input }
         });
 
         let client = Client::new();

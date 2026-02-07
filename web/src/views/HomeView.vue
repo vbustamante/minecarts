@@ -32,6 +32,25 @@
       </div>
     </div>
 
+    <div class="mt-2 flex items-center gap-2">
+      <div class="relative flex-1">
+        <Icon icon="carbon:search" width="18" height="18" class="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search services..."
+          class="w-full rounded-lg border border-neutral-300 bg-transparent py-2 pl-9 pr-3 text-sm dark:border-neutral-600"
+        />
+      </div>
+      <select
+        v-model="sortBy"
+        title="Sort order"
+        class="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-600"
+      >
+        <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+      </select>
+    </div>
+
     <CreateServiceModal :open="showCreate" @close="showCreate = false" />
 
     <div v-if="serviceStore.error" class="mt-4 rounded-lg border border-red-300 bg-red-50 p-4 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300">
@@ -42,8 +61,12 @@
       <p>No services yet. Click "Create Container" above to get started.</p>
     </div>
 
+    <div v-else-if="filteredServices.length === 0" class="mt-12 flex flex-col items-center justify-center text-neutral-500">
+      <p>No services match your search.</p>
+    </div>
+
     <div v-else class="mt-4 grid gap-3">
-      <ServiceCard v-for="service in serviceStore.services" :key="service.id" :service="service" @delete="confirmDelete" @select="selectService" />
+      <ServiceCard v-for="service in filteredServices" :key="service.id" :service="service" @delete="confirmDelete" @select="selectService" />
     </div>
 
     <ConfirmDeleteModal
@@ -93,6 +116,10 @@
               </dd>
               <dd v-else class="text-neutral-400">None</dd>
 
+              <dt class="text-neutral-500">Status</dt>
+              <dd v-if="selectedService.deployment?.status">{{ selectedService.deployment.status }}</dd>
+              <dd v-else class="text-neutral-400">No deployment</dd>
+
               <template v-if="selectedService.deployment">
                 <dt class="text-neutral-500">Image</dt>
                 <dd v-if="selectedService.deployment.image" class="font-mono truncate">{{ selectedService.deployment.image }}</dd>
@@ -137,6 +164,41 @@ const refreshing = ref(false);
 const serviceToDelete = ref<Service | null>(null);
 
 const loading = computed(() => loadingServices.value || refreshing.value);
+
+const searchQuery = ref("");
+type SortKey = "newest" | "oldest" | "alpha" | "updated-desc" | "updated-asc";
+const sortOptions: { label: string; value: SortKey }[] = [
+  { label: "Newest", value: "newest" },
+  { label: "Oldest", value: "oldest" },
+  { label: "Alphabetical", value: "alpha" },
+  { label: "Latest Updated", value: "updated-desc" },
+  { label: "Earliest Updated", value: "updated-asc" },
+];
+const sortBy = ref<SortKey>("newest");
+
+const filteredServices = computed(() => {
+  let result = serviceStore.services;
+
+  const q = searchQuery.value.toLowerCase().trim();
+  if (q) {
+    result = result.filter((s) => s.name.toLowerCase().includes(q));
+  }
+
+  return [...result].sort((a, b) => {
+    switch (sortBy.value) {
+      case "newest":
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      case "oldest":
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      case "alpha":
+        return a.name.localeCompare(b.name);
+      case "updated-desc":
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      case "updated-asc":
+        return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+    }
+  });
+});
 
 const intervalOptions = [
   { label: "Off", value: 0 },

@@ -22,9 +22,10 @@
             type="button"
             @click="emit('confirm')"
             :disabled="loading"
-            class="flex items-center gap-2 rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            class="flex items-center gap-2 rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:text-red-700 disabled:opacity-50"
           >
-            <Icon v-if="loading" icon="carbon:loading" width="16" height="16" class="animate-spin" />
+            <Icon v-if="loading" icon="gg:spinner" width="16" height="16" class="animate-spin" />
+            <Icon v-else icon="carbon:trash-can" width="16" height="16" />
             {{ loading ? "Deleting..." : "Delete" }}
           </button>
         </div>
