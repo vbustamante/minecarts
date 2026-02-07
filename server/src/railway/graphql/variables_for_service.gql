@@ -1,0 +1,7 @@
+query variablesForServiceDeployment($projectId: String!, $environmentId: String!, $serviceId: String!) {
+    variablesForServiceDeployment(
+        projectId: $projectId
+        environmentId: $environmentId
+        serviceId: $serviceId
+    )
+}

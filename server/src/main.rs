@@ -51,9 +51,13 @@ async fn main() {
 
     let state = Arc::new(AppState::new(config, redis_conn));
 
+    let variables_router = Router::new()
+        .route("/", get(routes::variables::list).put(routes::variables::upsert).delete(routes::variables::delete));
+
     let services_router = Router::new()
         .route("/", get(routes::services::list).post(routes::services::create))
-        .route("/{id}", put(routes::services::update).delete(routes::services::delete));
+        .route("/{service_id}", put(routes::services::update).delete(routes::services::delete))
+        .nest("/{service_id}/variables", variables_router);
 
     let app = Router::new()
         .route("/projects", get(routes::projects::list))

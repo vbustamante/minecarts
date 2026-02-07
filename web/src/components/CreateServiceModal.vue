@@ -28,6 +28,7 @@
                   :src="icon"
                   class="h-full w-full object-contain"
                   @error="iconError = true"
+                  alt="icon for service {{name}}"
                 />
                 <Icon v-else icon="carbon:image" class="text-neutral-400" width="20" height="20" />
               </div>
