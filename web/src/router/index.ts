@@ -12,6 +12,11 @@ const router = createRouter({
       component: HomeView,
     },
     {
+      path: "/project/:projectId",
+      name: "project",
+      component: HomeView,
+    },
+    {
       path: "/login",
       name: "login",
       component: LoginView,

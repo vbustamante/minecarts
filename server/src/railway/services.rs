@@ -11,6 +11,8 @@ pub struct RailwayService {
     pub icon: Option<String>,
     #[serde(rename = "createdAt")]
     pub created_at: String,
+    #[serde(rename = "updatedAt")]
+    pub updated_at: String,
     #[serde(rename = "projectId")]
     pub project_id: String,
 }
@@ -63,21 +65,7 @@ struct ServiceUpdateData {
 impl RailwayService {
     pub async fn list(access_token: String, project_id: &str) -> Result<Vec<Self>, reqwest::Error> {
         let body = serde_json::json!({
-            "query": r#"query project($id: String!) {
-                project(id: $id) {
-                    services {
-                        edges {
-                            node {
-                                id
-                                name
-                                icon
-                                createdAt
-                                projectId
-                            }
-                        }
-                    }
-                }
-            }"#,
+            "query": include_str!("graphql/project_services.gql"),
             "variables": { "id": project_id }
         });
 
@@ -107,15 +95,7 @@ impl RailwayService {
 
     pub async fn create(access_token: String, req: CreateServiceRequest) -> Result<Self, reqwest::Error> {
         let body = serde_json::json!({
-            "query": r#"mutation serviceCreate($input: ServiceCreateInput!) {
-                serviceCreate(input: $input) {
-                    id
-                    name
-                    icon
-                    createdAt
-                    projectId
-                }
-            }"#,
+            "query": include_str!("graphql/service_create.gql"),
             "variables": {
                 "input": {
                     "projectId": req.project_id,
@@ -150,15 +130,7 @@ impl RailwayService {
         }
 
         let body = serde_json::json!({
-            "query": r#"mutation serviceUpdate($id: String!, $input: ServiceUpdateInput!) {
-                serviceUpdate(id: $id, input: $input) {
-                    id
-                    name
-                    icon
-                    createdAt
-                    projectId
-                }
-            }"#,
+            "query": include_str!("graphql/service_update.gql"),
             "variables": {
                 "id": id,
                 "input": input,
@@ -182,21 +154,20 @@ impl RailwayService {
 
     pub async fn delete(access_token: String, id: &str) -> Result<(), reqwest::Error> {
         let body = serde_json::json!({
-            "query": r#"mutation serviceDelete($id: String!) {
-                serviceDelete(id: $id)
-            }"#,
+            "query": include_str!("graphql/service_delete.gql"),
             "variables": { "id": id }
         });
 
         let client = Client::new();
 
-        client
+        dbg!(client
             .post(GRAPHQL_URL)
             .bearer_auth(access_token)
             .json(&body)
             .send()
             .await?
-            .error_for_status()?;
+            .error_for_status()?
+            .text().await);
 
         Ok(())
     }

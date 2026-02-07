@@ -1,0 +1,10 @@
+mutation serviceUpdate($id: String!, $input: ServiceUpdateInput!) {
+    serviceUpdate(id: $id, input: $input) {
+        id
+        name
+        icon
+        createdAt
+        updatedAt
+        projectId
+    }
+}

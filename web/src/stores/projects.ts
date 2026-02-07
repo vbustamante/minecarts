@@ -7,9 +7,15 @@ export const useProjectStore = defineStore("projects", {
     projects: ref<Project[]>([]),
     selectedProjectId: ref<string | null>(null),
   }),
+  getters: {
+    isSingleProject: (state) => state.projects.length === 1,
+  },
   actions: {
     async fetchAll() {
       this.projects = await listProjects();
+      if (this.projects.length === 1 && !this.selectedProjectId) {
+        this.selectedProjectId = this.projects[0]!.id;
+      }
     },
   },
 });

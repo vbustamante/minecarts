@@ -28,7 +28,7 @@ impl Project {
     pub async fn list(access_token: String) -> Result<Vec<Self>, reqwest::Error> {
 
         let body = serde_json::json!({
-            "query": "query { externalWorkspaces { id name projects { id name } } }"
+            "query": include_str!("graphql/external_workspaces.gql")
         });
 
         let client = Client::new();

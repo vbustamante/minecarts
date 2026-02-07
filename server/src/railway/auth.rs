@@ -1,3 +1,4 @@
+use chrono::{Duration, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -15,10 +16,24 @@ pub struct RailwayUser {
 #[derive(Deserialize, Debug, Clone)]
 pub struct RailwayAuthData {
     pub access_token: String,
-    refresh_token: String,
+    pub refresh_token: String,
     expires_in: u64,
-    id_token: String,
-    scope: String,
+    #[serde(default = "default_expires_on")]
+    pub expires_on: chrono::DateTime<Utc>,
+    // unused fields
+    // id_token: String,
+    // scope: String,
+}
+
+fn default_expires_on() -> chrono::DateTime<Utc> {
+    Utc::now()
+}
+
+impl RailwayAuthData {
+    pub fn with_expires_on(mut self) -> Self {
+        self.expires_on = Utc::now() + Duration::seconds(self.expires_in as i64);
+        self
+    }
 }
 
 pub fn build_auth_url(config: &OAuthConfig, csrf_state: &str, ask_for_projects: bool) -> String {
@@ -60,7 +75,7 @@ pub async fn exchange_code(
         .await?
         .error_for_status()?;
 
-    let token: RailwayAuthData = token_res.json().await?;
+    let token: RailwayAuthData = token_res.json::<RailwayAuthData>().await?.with_expires_on();
     Ok(token)
 }
 
@@ -80,7 +95,7 @@ pub async fn refresh_token(
         .await?
         .error_for_status()?;
 
-    let token: RailwayAuthData = token_res.json().await?;
+    let token: RailwayAuthData = token_res.json::<RailwayAuthData>().await?.with_expires_on();
     Ok(token)
 }
 

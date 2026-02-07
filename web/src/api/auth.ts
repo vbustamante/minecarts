@@ -1,3 +1,5 @@
+import client from "./client";
+
 export interface User {
   id: string;
   name: string | null;
@@ -8,12 +10,14 @@ export interface User {
 export const loginUrl = "/api/auth/login";
 
 export async function fetchMe(): Promise<User | null> {
-  const res = await fetch("/api/auth/me");
-  if (res.status === 401) return null;
-  if (!res.ok) throw new Error(`Failed to fetch user: ${res.status}`);
-  return res.json();
+  try {
+    const { data } = await client.get<User>("/auth/me");
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 export async function logout(): Promise<void> {
-  await fetch("/api/auth/logout", { method: "POST" });
+  await client.post("/auth/logout");
 }
