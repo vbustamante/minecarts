@@ -15,6 +15,7 @@
       <button
         @click="refresh"
         :disabled="loading"
+        title="Refresh"
         class="flex items-center justify-center rounded-full p-2 transition-colors"
         :class="loading ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:bg-gray-100 '"
       >
@@ -24,7 +25,15 @@
 
     <CreateServiceModal :open="showCreate" @close="showCreate = false" />
 
-    <div class="mt-4 grid gap-3">
+    <div v-if="serviceStore.error" class="mt-4 rounded-lg border border-red-300 bg-red-50 p-4 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300">
+      {{ serviceStore.error }}
+    </div>
+
+    <div v-else-if="serviceStore.services.length === 0 && !loading" class="mt-12 flex flex-col items-center justify-center text-neutral-500">
+      <p>No services yet. Click "Create Container" above to get started.</p>
+    </div>
+
+    <div v-else class="mt-4 grid gap-3">
       <ServiceCard v-for="service in serviceStore.services" :key="service.id" :service="service" @delete="confirmDelete" @select="selectService" />
     </div>
 
@@ -73,6 +82,13 @@
                 <img :src="selectedService.icon" width="20" height="20" alt="" />
               </dd>
               <dd v-else class="text-neutral-400">None</dd>
+
+              <dt class="text-neutral-500">Image</dt>
+              <dd v-if="selectedService.deployment.image" class="font-mono truncate">{{ selectedService.deployment.image }}</dd>
+              <dd v-else class="text-neutral-400">None</dd>
+
+              <dt class="text-neutral-500">Instances</dt>
+              <dd>{{ selectedService.deployment.instances.length }}</dd>
 
               <dt class="text-neutral-500">Created</dt>
               <dd>{{ formatDate(selectedService.createdAt) }}</dd>

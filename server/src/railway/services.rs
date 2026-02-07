@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use crate::railway::GraphQLResponse;
@@ -15,6 +16,68 @@ pub struct RailwayService {
     pub updated_at: String,
     #[serde(rename = "projectId")]
     pub project_id: String,
+}
+
+#[derive(Serialize)]
+pub struct ServiceWithDeployment {
+    #[serde(flatten)]
+    pub service: RailwayService,
+    pub deployment: DeploymentInfo,
+}
+
+#[derive(Serialize)]
+pub struct DeploymentInfo {
+    pub instances: Vec<Instance>,
+    pub image: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Instance {
+    pub id: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct DeploymentMeta {
+    pub image: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct EnvironmentsConnection {
+    edges: Vec<EnvironmentEdge>,
+}
+
+#[derive(Deserialize)]
+struct EnvironmentEdge {
+    node: Environment,
+}
+
+#[derive(Deserialize)]
+struct Environment {
+    name: String,
+    deployments: DeploymentsConnection,
+}
+
+#[derive(Deserialize)]
+struct DeploymentsConnection {
+    edges: Vec<DeploymentEdge>,
+}
+
+#[derive(Deserialize)]
+struct DeploymentEdge {
+    node: Deployment,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Deployment {
+    service_id: String,
+    instances: Vec<Instance>,
+    meta: Option<DeploymentMeta>,
+}
+
+pub enum ServiceError {
+    Request(#[allow(dead_code)] reqwest::Error),
+    NoProductionEnvironment,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,6 +101,7 @@ struct ProjectData {
 #[derive(Deserialize)]
 struct ProjectNode {
     services: ServicesConnection,
+    environments: EnvironmentsConnection,
 }
 
 #[derive(Deserialize)]
@@ -63,7 +127,7 @@ struct ServiceUpdateData {
 }
 
 impl RailwayService {
-    pub async fn list(access_token: String, project_id: &str) -> Result<Vec<Self>, reqwest::Error> {
+    pub async fn list(access_token: String, project_id: &str) -> Result<Vec<ServiceWithDeployment>, ServiceError> {
         let body = serde_json::json!({
             "query": include_str!("graphql/project_services.gql"),
             "variables": { "id": project_id }
@@ -76,18 +140,44 @@ impl RailwayService {
             .bearer_auth(access_token)
             .json(&body)
             .send()
-            .await?
-            .error_for_status()?
+            .await
+            .map_err(ServiceError::Request)?
+            .error_for_status()
+            .map_err(ServiceError::Request)?
             .json()
-            .await?;
+            .await
+            .map_err(ServiceError::Request)?;
 
-        let services = res
-            .data
-            .project
+        let project = res.data.project;
+
+        let production_env = project
+            .environments
+            .edges
+            .into_iter()
+            .map(|e| e.node)
+            .find(|env| env.name == "production")
+            .ok_or(ServiceError::NoProductionEnvironment)?;
+
+        let mut deployments_by_service: HashMap<String, Deployment> = HashMap::new();
+        for edge in production_env.deployments.edges {
+            deployments_by_service.insert(edge.node.service_id.clone(), edge.node);
+        }
+
+        let services = project
             .services
             .edges
             .into_iter()
             .map(|e| e.node)
+            .filter_map(|service| {
+                let deployment = deployments_by_service.remove(&service.id)?;
+                Some(ServiceWithDeployment {
+                    service,
+                    deployment: DeploymentInfo {
+                        instances: deployment.instances,
+                        image: deployment.meta.and_then(|m| m.image),
+                    },
+                })
+            })
             .collect();
 
         Ok(services)

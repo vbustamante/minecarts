@@ -1,18 +1,32 @@
 use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::Json;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use crate::extractors::UserSession;
-use crate::railway::services::{CreateServiceRequest as RailwayCreateServiceRequest, RailwayService, UpdateServiceRequest};
+use crate::railway::services::{CreateServiceRequest as RailwayCreateServiceRequest, RailwayService, ServiceError, ServiceWithDeployment, UpdateServiceRequest};
+
+#[derive(Serialize)]
+pub struct ErrorResponse {
+    error: String,
+}
 
 pub async fn list(
     UserSession(session): UserSession,
     Path(project_id): Path<String>,
-) -> Result<Json<Vec<RailwayService>>, StatusCode> {
+) -> Result<Json<Vec<ServiceWithDeployment>>, (StatusCode, Json<ErrorResponse>)> {
     RailwayService::list(session.railway_auth.access_token, &project_id)
         .await
         .map(Json)
-        .map_err(|_| StatusCode::BAD_GATEWAY)
+        .map_err(|e| match e {
+            ServiceError::NoProductionEnvironment => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                Json(ErrorResponse { error: "No production environment found. Create one on the railway console then click refresh.".into() }),
+            ),
+            ServiceError::Request(_) => (
+                StatusCode::BAD_GATEWAY,
+                Json(ErrorResponse { error: "Failed to fetch services from Railway".into() }),
+            ),
+        })
 }
 
 #[derive(Deserialize, Debug, Clone)]
