@@ -88,8 +88,8 @@
               <dd class="font-mono truncate">{{ selectedService.projectId }}</dd>
 
               <dt class="text-neutral-500">Icon</dt>
-              <dd v-if="selectedService.icon" class="flex items-center gap-2">
-                <img :src="selectedService.icon" width="20" height="20" alt="" />
+              <dd v-if="selectedService.icon" class="font-mono">
+                <a :href="selectedService.icon" target="_blank">{{ selectedService.icon }} <Icon class="inline" icon="carbon:link"/> </a>
               </dd>
               <dd v-else class="text-neutral-400">None</dd>
 
