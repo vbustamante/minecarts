@@ -41,7 +41,7 @@ pub fn build_auth_url(config: &OAuthConfig, csrf_state: &str, ask_for_projects: 
         ("response_type", "code"),
         ("client_id", config.client_id.as_str()),
         ("redirect_uri", config.redirect_uri.as_str()),
-        ("scope", "openid profile email offline_access project:member"),
+        ("scope", "openid profile email offline_access workspace:admin project:member"),
         ("state", csrf_state)
     ]);
 

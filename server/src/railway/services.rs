@@ -159,15 +159,15 @@ impl RailwayService {
         });
 
         let client = Client::new();
-
-        dbg!(client
+        client
             .post(GRAPHQL_URL)
             .bearer_auth(access_token)
             .json(&body)
             .send()
             .await?
-            .error_for_status()?
-            .text().await);
+            .error_for_status()?;
+
+        // TODO: error management when status is 200 but the graphql server returns an error
 
         Ok(())
     }
