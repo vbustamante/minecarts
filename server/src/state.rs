@@ -1,14 +1,14 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
+use redis::aio::ConnectionManager;
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
-use crate::models::Session;
 use crate::ServiceConfig;
 
 pub type SharedState = Arc<AppState>;
 
+#[derive(Debug)]
 pub struct OAuthConfig {
     pub client_id: String,
     pub client_secret: String,
@@ -16,15 +16,15 @@ pub struct OAuthConfig {
 }
 
 pub struct AppState {
-    pub sessions: RwLock<HashMap<Uuid, Session>>,
+    pub redis: ConnectionManager,
     pub csrf_states: RwLock<HashSet<String>>,
     pub oauth_config: OAuthConfig,
 }
 
 impl AppState {
-    pub fn new(config: ServiceConfig) -> Self {
+    pub fn new(config: ServiceConfig, redis: ConnectionManager) -> Self {
         Self {
-            sessions: RwLock::new(HashMap::new()),
+            redis,
             csrf_states: RwLock::new(HashSet::new()),
             oauth_config: config.oauth,
         }

@@ -2,6 +2,7 @@ use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{Json, Redirect};
 use axum_extra::extract::cookie::{Cookie, CookieJar};
+use redis::AsyncCommands;
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -47,10 +48,19 @@ pub async fn callback(
 
     // Create session
     let session_id = Uuid::new_v4();
-    state.sessions.write().await.insert(session_id, Session {
+    let session = Session {
         user,
         railway_auth,
-    });
+    };
+    let session_json =
+        serde_json::to_string(&session).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let key = format!("session:{session_id}");
+    let mut redis = state.redis.clone();
+    let _ : () = redis
+        .set(&key, &session_json)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let cookie = Cookie::build((SESSION_COOKIE, session_id.to_string()))
         .path("/")
@@ -70,7 +80,9 @@ pub async fn logout(
 ) -> (CookieJar, Redirect) {
     if let Some(cookie) = jar.get(SESSION_COOKIE) {
         if let Ok(session_id) = cookie.value().parse::<Uuid>() {
-            state.sessions.write().await.remove(&session_id);
+            let key = format!("session:{session_id}");
+            let mut redis = state.redis.clone();
+            let _: () = redis.del(&key).await.unwrap_or(());
         }
     }
 

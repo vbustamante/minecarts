@@ -3,6 +3,7 @@ use axum::http::StatusCode;
 use axum::http::request::Parts;
 use axum_extra::extract::cookie::CookieJar;
 use chrono::{Duration, Utc};
+use redis::AsyncCommands;
 use uuid::Uuid;
 
 use crate::models::Session;
@@ -28,11 +29,16 @@ impl FromRequestParts<SharedState> for UserSession {
             .and_then(|c| c.value().parse::<Uuid>().ok())
             .ok_or(StatusCode::UNAUTHORIZED)?;
 
-        let session = {
-            let sessions = state.sessions.read().await;
-            let session = sessions.get(&session_id).ok_or(StatusCode::UNAUTHORIZED)?;
-            session.clone()
-        };
+        let key = format!("session:{session_id}");
+        let mut redis = state.redis.clone();
+
+        let session_json: String = redis
+            .get(&key)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        let session: Session =
+            serde_json::from_str(&session_json).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         if session.railway_auth.expires_on < Utc::now() + Duration::minutes(5) {
             let client = reqwest::Client::new();
@@ -44,12 +50,18 @@ impl FromRequestParts<SharedState> for UserSession {
             .await
             .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-            let mut sessions = state.sessions.write().await;
-            if let Some(s) = sessions.get_mut(&session_id) {
-                s.railway_auth = new_auth;
-                return Ok(UserSession(s.clone()));
-            }
-            return Err(StatusCode::UNAUTHORIZED);
+            let updated_session = Session {
+                user: session.user,
+                railway_auth: new_auth,
+            };
+            let json = serde_json::to_string(&updated_session)
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let _: () = redis
+                .set(&key, &json)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+            return Ok(UserSession(updated_session));
         }
 
         Ok(UserSession(session))

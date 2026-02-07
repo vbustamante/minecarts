@@ -13,7 +13,7 @@ pub struct RailwayUser {
     pub email_verified: bool,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RailwayAuthData {
     pub access_token: String,
     pub refresh_token: String,

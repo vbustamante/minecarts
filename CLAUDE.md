@@ -29,6 +29,7 @@ Required in `.env.local` at the repo root:
 - `RAILWAY_CLIENT_SECRET` — Railway OAuth client secret
 - `RAILWAY_REDIRECT_URI` — defaults to `http://localhost:5173/api/auth/callback`
 - `SERVER_HOST` — defaults to `0.0.0.0:3001`
+- `REDIS_URL` — Redis connection string (e.g. `redis://localhost:6379`), required
 
 ## Architecture
 
@@ -40,7 +41,7 @@ Required in `.env.local` at the repo root:
 Vite proxies `/api/*` requests to the Rust server at `localhost:3001`, stripping the `/api` prefix. The frontend always calls `/api/...` paths; the server routes have no `/api` prefix.
 
 ### Authentication flow
-OAuth with Railway (`backboard.railway.com`). The server handles the full OAuth flow (login redirect, code exchange, token refresh) and stores sessions in-memory (`HashMap<Uuid, Session>` behind `RwLock`). A `session_id` cookie identifies the user. The `UserSession` extractor (`server/src/extractors.rs`) validates sessions and auto-refreshes expired tokens.
+OAuth with Railway (`backboard.railway.com`). The server handles the full OAuth flow (login redirect, code exchange, token refresh) and stores sessions in Redis (key `session:{uuid}`, JSON-serialized). A `session_id` cookie identifies the user. The `UserSession` extractor (`server/src/extractors.rs`) validates sessions and auto-refreshes expired tokens. CSRF states remain in-memory (short-lived, only needed during OAuth flow).
 
 ### Railway API integration
 `server/src/railway/` contains typed clients for Railway's GraphQL v2 API. GraphQL queries live in `.gql` files under `server/src/railway/graphql/` and are embedded at compile time via `include_str!`. Each domain entity (projects, services) has methods on its struct for API operations.

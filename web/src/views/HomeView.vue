@@ -12,15 +12,24 @@
       >
         Create Container <Icon icon="carbon:add" width="20" height="20" />
       </button>
-      <button
-        @click="refresh"
-        :disabled="loading"
-        title="Refresh"
-        class="flex items-center justify-center rounded-full p-2 transition-colors"
-        :class="loading ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:bg-gray-100 '"
-      >
-        <Icon icon="carbon:renew" width="22" height="22" :class="{ 'animate-spin': loading }" />
-      </button>
+      <div class="flex items-center gap-1">
+        <button
+          @click="refresh"
+          :disabled="loading"
+          title="Refresh"
+          class="transition-colors"
+          :class="loading ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:bg-gray-100 '"
+        >
+          <Icon icon="carbon:renew" width="22" height="22" :class="{ 'animate-spin': loading }" />
+        </button>
+        <select
+          v-model="autoRefreshInterval"
+          title="Auto refresh interval"
+          class="text-sm text-gray-400"
+        >
+          <option v-for="opt in intervalOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+        </select>
+      </div>
     </div>
 
     <CreateServiceModal :open="showCreate" @close="showCreate = false" />
@@ -45,6 +54,7 @@
       @confirm="onDelete"
     />
 
+    <!-- Service Details Panel -->
     <Teleport to="body">
       <Transition
         enter-active-class="transition-transform duration-300 ease-out"
@@ -62,7 +72,7 @@
                 <Icon v-else icon="carbon:web-services-container" class="shrink-0 text-neutral-500" width="24" height="24" />
                 <h2 class="text-lg font-semibold">{{ selectedService.name }}</h2>
               </div>
-              <button @click="selectedService = null" class="rounded p-1 text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700">
+              <button @click="closeServicePanel" class="rounded p-1 text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700">
                 <Icon icon="carbon:close" width="20" height="20" />
               </button>
             </div>
@@ -83,12 +93,14 @@
               </dd>
               <dd v-else class="text-neutral-400">None</dd>
 
-              <dt class="text-neutral-500">Image</dt>
-              <dd v-if="selectedService.deployment.image" class="font-mono truncate">{{ selectedService.deployment.image }}</dd>
-              <dd v-else class="text-neutral-400">None</dd>
+              <template v-if="selectedService.deployment">
+                <dt class="text-neutral-500">Image</dt>
+                <dd v-if="selectedService.deployment.image" class="font-mono truncate">{{ selectedService.deployment.image }}</dd>
+                <dd v-else class="text-neutral-400">None</dd>
 
-              <dt class="text-neutral-500">Instances</dt>
-              <dd>{{ selectedService.deployment.instances.length }}</dd>
+                <dt class="text-neutral-500">Instances</dt>
+                <dd>{{ selectedService.deployment.instances.length }}</dd>
+              </template>
 
               <dt class="text-neutral-500">Created</dt>
               <dd>{{ formatDate(selectedService.createdAt) }}</dd>
@@ -104,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, Transition, Teleport, watch } from "vue";
+import { computed, ref, Transition, Teleport, watch, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Icon } from "@iconify/vue";
 import ProjectPicker from "../components/ProjectPicker.vue";
@@ -123,10 +135,35 @@ const showCreate = ref(false);
 const loadingServices = ref(false);
 const refreshing = ref(false);
 const serviceToDelete = ref<Service | null>(null);
-const selectedService = ref<Service | null>(null);
-const deleting = ref(false);
 
 const loading = computed(() => loadingServices.value || refreshing.value);
+
+const intervalOptions = [
+  { label: "Off", value: 0 },
+  { label: "10s", value: 10_000 },
+  { label: "30s", value: 30_000 },
+  { label: "1m", value: 60_000 },
+  { label: "5m", value: 300_000 },
+];
+const autoRefreshInterval = ref(30_000);
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  if (autoRefreshInterval.value > 0) {
+    autoRefreshTimer = setInterval(() => refresh(), autoRefreshInterval.value);
+  }
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer !== null) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+}
+
+watch(autoRefreshInterval, startAutoRefresh, { immediate: true });
+onUnmounted(stopAutoRefresh);
 
 async function refresh() {
   if (refreshing.value || !projectsStore.selectedProjectId) return;
@@ -136,14 +173,20 @@ async function refresh() {
   refreshing.value = false;
 }
 
+const selectedService = ref<Service | null>(null);
 function selectService(serviceId: string) {
-  selectedService.value = serviceStore.services.find((s) => s.id === serviceId) ?? null;
+  router.push({ name: "component", params: { projectId: projectsStore.selectedProjectId!, componentId: serviceId } });
+}
+
+function closeServicePanel() {
+  router.push({ name: "project", params: { projectId: projectsStore.selectedProjectId! } });
 }
 
 function confirmDelete(serviceId: string) {
   serviceToDelete.value = serviceStore.services.find((s) => s.id === serviceId) ?? null;
 }
 
+const deleting = ref(false);
 async function onDelete() {
   if (!serviceToDelete.value) return;
   deleting.value = true;
@@ -175,6 +218,19 @@ watch(
       loadingServices.value = true;
       await serviceStore.fetchAll(projectId);
       loadingServices.value = false;
+    }
+  },
+  { immediate: true },
+);
+
+// Sync componentId route param → selectedService
+watch(
+  [() => route.params.componentId as string | undefined, () => serviceStore.services],
+  ([componentId]) => {
+    if (componentId) {
+      selectedService.value = serviceStore.services.find((s) => s.id === componentId) ?? null;
+    } else {
+      selectedService.value = null;
     }
   },
   { immediate: true },

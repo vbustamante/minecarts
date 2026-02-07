@@ -10,8 +10,10 @@ use axum::Router;
 use axum::routing::{get, post, put};
 use state::{AppState, OAuthConfig};
 
+#[derive(Debug)]
 pub struct ServiceConfig {
     pub server_host: String,
+    pub redis_url: String,
     pub oauth: OAuthConfig,
 }
 
@@ -20,6 +22,8 @@ impl ServiceConfig {
         Self {
             server_host: std::env::var("SERVER_HOST")
                 .unwrap_or_else(|_| "0.0.0.0:3001".to_string()),
+            redis_url: std::env::var("REDIS_URL")
+                .expect("REDIS_URL must be set"),
             oauth: OAuthConfig {
                 client_id: std::env::var("RAILWAY_CLIENT_ID")
                     .expect("RAILWAY_CLIENT_ID must be set"),
@@ -34,9 +38,18 @@ impl ServiceConfig {
 
 #[tokio::main]
 async fn main() {
+    let _ = dotenvy::from_filename(".env");
     let config = ServiceConfig::from_env();
     let server_host = config.server_host.clone();
-    let state = Arc::new(AppState::new(config));
+
+    let redis_client = redis::Client::open(config.redis_url.as_str())
+        .expect("Invalid REDIS_URL");
+    let redis_conn = redis_client
+        .get_connection_manager()
+        .await
+        .expect("Failed to connect to Redis");
+
+    let state = Arc::new(AppState::new(config, redis_conn));
 
     let services_router = Router::new()
         .route("/", get(routes::services::list).post(routes::services::create))
