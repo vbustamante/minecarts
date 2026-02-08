@@ -2,7 +2,8 @@
   <div
       :key="service.id"
       @click="$emit('select', service.id)"
-      class="flex cursor-pointer items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-4 transition-colors hover:border-indigo-500 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:border-indigo-400"
+      class="flex cursor-pointer items-center justify-between rounded-lg border bg-neutral-50 px-4 py-4 transition-colors hover:border-indigo-500 dark:bg-neutral-800 dark:hover:border-indigo-400"
+      :class="isSelected ? 'border-indigo-500 dark:border-indigo-400' : 'border-neutral-200 dark:border-neutral-700'"
   >
     <div class="flex items-center gap-3 min-w-0">
       <span class="relative shrink-0">
@@ -35,11 +36,15 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useRoute } from "vue-router";
 import type { Service } from "../api/types";
 import { Icon } from "@iconify/vue";
 import { formatDate } from "../helpers";
 
+const route = useRoute();
 const props = defineProps<{ service: Service }>();
+
+const isSelected = computed(() => route.params.componentId === props.service.id);
 
 defineEmits<{
   (e: 'delete', id: string): void

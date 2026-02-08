@@ -77,112 +77,21 @@
       @confirm="onDelete"
     />
 
-    <!-- Service Details Panel -->
-    <Teleport to="body">
-      <Transition
-        enter-active-class="transition-transform duration-300 ease-out"
-        enter-from-class="translate-x-full"
-        enter-to-class="translate-x-0"
-        leave-active-class="transition-transform duration-300 ease-in"
-        leave-from-class="translate-x-0"
-        leave-to-class="translate-x-full"
-      >
-        <div v-if="selectedService" class="fixed top-12 right-0 bottom-0 z-40 w-full max-w-md rounded-tl-xl border-l border-t border-neutral-700 bg-neutral-50 shadow-xl dark:bg-neutral-800">
-          <div class="flex h-full flex-col p-6">
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-2">
-                <img v-if="selectedService.icon" :src="selectedService.icon" width="24" height="24" alt="" />
-                <Icon v-else icon="carbon:web-services-container" class="shrink-0 text-neutral-500" width="24" height="24" />
-                <h2 class="text-lg font-semibold">{{ selectedService.name }}</h2>
-              </div>
-              <button @click="closeServicePanel" class="rounded p-1 text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700">
-                <Icon icon="carbon:close" width="20" height="20" />
-              </button>
-            </div>
-
-            <!-- Tabs -->
-            <div class="mb-4 flex border-b border-neutral-300 dark:border-neutral-600">
-              <div
-                @click="panelTab = 'details'"
-                class="px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors hover:cursor-pointer"
-                :class="panelTab === 'details' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-              >Details</div>
-              <div
-                @click="panelTab = 'variables'"
-                class="px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors hover:cursor-pointer"
-                :class="panelTab === 'variables' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-              >Variables</div>
-            </div>
-
-            <!-- Details tab -->
-            <dl v-if="panelTab === 'details'" class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
-              <dt class="text-neutral-500">ID</dt>
-              <dd class="font-mono truncate">{{ selectedService.id }}</dd>
-
-              <dt class="text-neutral-500">Name</dt>
-              <dd>{{ selectedService.name }}</dd>
-
-              <dt class="text-neutral-500">Project ID</dt>
-              <dd class="font-mono truncate">{{ selectedService.projectId }}</dd>
-
-              <dt class="text-neutral-500">Icon</dt>
-              <dd v-if="selectedService.icon" class="font-mono">
-                <a :href="selectedService.icon" target="_blank">{{ selectedService.icon }} <Icon class="inline" icon="carbon:link"/> </a>
-              </dd>
-              <dd v-else class="text-neutral-400">None</dd>
-
-              <dt class="text-neutral-500">Status</dt>
-              <dd v-if="selectedService.deployment?.status">{{ selectedService.deployment.status }}</dd>
-              <dd v-else class="text-neutral-400">No deployment</dd>
-
-              <template v-if="selectedService.deployment">
-                <dt class="text-neutral-500">Image</dt>
-                <dd v-if="selectedService.deployment.image" class="font-mono truncate">{{ selectedService.deployment.image }}</dd>
-                <dd v-else class="text-neutral-400">None</dd>
-
-                <dt class="text-neutral-500">Instances</dt>
-                <dd>{{ selectedService.deployment.instances.length }}</dd>
-              </template>
-
-              <dt class="text-neutral-500">Created</dt>
-              <dd>{{ formatDate(selectedService.createdAt) }}</dd>
-
-              <dt class="text-neutral-500">Updated</dt>
-              <dd>{{ formatDate(selectedService.updatedAt) }}</dd>
-            </dl>
-
-            <!-- Variables tab -->
-            <div v-else-if="panelTab === 'variables'" class="flex-1 overflow-y-auto">
-              <div v-if="variableStore.loading && !serviceVariables" class="flex items-center gap-2 text-sm text-neutral-500">
-                <Icon icon="carbon:renew" width="16" height="16" class="animate-spin" /> Loading variables...
-              </div>
-              <div v-else-if="variableStore.error" class="text-sm text-red-500">{{ variableStore.error }}</div>
-              <div v-else-if="serviceVariables && Object.keys(serviceVariables).length === 0" class="text-sm text-neutral-500">No variables set.</div>
-              <div v-else-if="serviceVariables" class="flex flex-col gap-2">
-                <div v-for="(value, name) in serviceVariables" :key="name" class="rounded border border-neutral-200 px-3 py-2 dark:border-neutral-600">
-                  <div class="text-xs font-medium text-neutral-500">{{ name }}</div>
-                  <div class="mt-0.5 break-all font-mono text-sm">{{ value }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <ServiceDetailsPanel />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, Transition, Teleport, watch, onUnmounted } from "vue";
+import { computed, ref, watch, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Icon } from "@iconify/vue";
 import ProjectPicker from "../components/ProjectPicker.vue";
 import CreateServiceModal from "../components/CreateServiceModal.vue";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal.vue";
-import { useProjectStore, useServiceStore, useVariableStore } from "../stores";
+import ServiceDetailsPanel from "../components/ServiceDetailsPanel.vue";
+import { useProjectStore, useServiceStore } from "../stores";
 import type { Service } from "../api/types";
 import ServiceCard from "../components/ServiceCard.vue";
-import { formatDate } from "../helpers";
 
 const route = useRoute();
 const router = useRouter();
@@ -265,55 +174,12 @@ async function refresh() {
   refreshing.value = false;
 }
 
-const variableStore = useVariableStore();
-const panelTab = ref<"details" | "variables">("details");
-let variablePollTimer: ReturnType<typeof setInterval> | null = null;
-
-const selectedService = ref<Service | null>(null);
-
-const serviceVariables = computed(() =>
-  selectedService.value ? variableStore.byService[selectedService.value.id] : undefined,
-);
-
-function startVariablePolling() {
-  stopVariablePolling();
-  if (selectedService.value && projectsStore.selectedProjectId) {
-    variableStore.fetch(projectsStore.selectedProjectId, selectedService.value.id);
-    variablePollTimer = setInterval(() => {
-      if (selectedService.value && projectsStore.selectedProjectId) {
-        variableStore.fetch(projectsStore.selectedProjectId, selectedService.value.id);
-      }
-    }, 10_000);
-  }
-}
-
-function stopVariablePolling() {
-  if (variablePollTimer !== null) {
-    clearInterval(variablePollTimer);
-    variablePollTimer = null;
-  }
-}
-
-watch(selectedService, (svc) => {
-  panelTab.value = "details";
-  if (svc) {
-    startVariablePolling();
-  } else {
-    stopVariablePolling();
-  }
-});
-
-onUnmounted(stopVariablePolling);
 function selectService(serviceId: string) {
   router.push({ name: "component", params: { projectId: projectsStore.selectedProjectId!, componentId: serviceId } });
 }
 
-function closeServicePanel() {
-  router.push({ name: "project", params: { projectId: projectsStore.selectedProjectId! } });
-}
-
 function confirmDelete(serviceId: string) {
-  serviceToDelete.value = serviceStore.services.find((s) => s.id === serviceId) ?? null;
+  serviceToDelete.value = serviceStore.servicesById[serviceId] ?? null;
 }
 
 const deleting = ref(false);
@@ -348,19 +214,6 @@ watch(
       loadingServices.value = true;
       await serviceStore.fetchAll(projectId);
       loadingServices.value = false;
-    }
-  },
-  { immediate: true },
-);
-
-// Sync componentId route param → selectedService
-watch(
-  [() => route.params.componentId as string | undefined, () => serviceStore.services],
-  ([componentId]) => {
-    if (componentId) {
-      selectedService.value = serviceStore.services.find((s) => s.id === componentId) ?? null;
-    } else {
-      selectedService.value = null;
     }
   },
   { immediate: true },

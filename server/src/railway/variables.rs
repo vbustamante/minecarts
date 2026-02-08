@@ -42,7 +42,7 @@ struct Environment {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct VariablesData {
-    variables_for_service_deployment: HashMap<String, String>,
+    variables: HashMap<String, String>,
 }
 
 #[derive(Deserialize)]
@@ -105,17 +105,17 @@ pub async fn list(
         }
     });
 
-    let res: GraphQLResponse<VariablesData> = client
+    let res = client
         .post(GRAPHQL_URL)
         .bearer_auth(access_token)
         .json(&body)
         .send()
         .await?
         .error_for_status()?
-        .json()
+        .json::<GraphQLResponse<VariablesData>>()
         .await?;
 
-    Ok(res.data.variables_for_service_deployment)
+    Ok(res.data.variables)
 }
 
 pub async fn upsert(
