@@ -13,3 +13,20 @@ export async function listVariables(
   );
   return data;
 }
+
+export async function upsertVariable(
+  projectId: string,
+  serviceId: string,
+  name: string,
+  value: string,
+): Promise<void> {
+  await client.put(base(projectId, serviceId), { name, value });
+}
+
+export async function deleteVariable(
+  projectId: string,
+  serviceId: string,
+  name: string,
+): Promise<void> {
+  await client.delete(base(projectId, serviceId), { data: { name } });
+}

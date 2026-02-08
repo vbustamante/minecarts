@@ -16,6 +16,7 @@ export interface Service {
 
 export interface CreateServiceRequest {
   name: string;
+  image: string;
   icon?: string;
 }
 

@@ -32,7 +32,7 @@
               @click="panelTab = 'variables'"
               class="px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors hover:cursor-pointer"
               :class="panelTab === 'variables' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-            >Variables <span v-if="variableCount !== null" class="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-100 px-1 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">{{ variableCount > 9 ? '9+' : variableCount }}</span></div>
+            >Variables <span v-if="variableCount !== null" class="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-100 px-1 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">{{ variableCount > 9 ? '9+' : variableCount }}</span><Icon v-else icon="carbon:renew" width="12" height="12" class="ml-1 inline animate-spin text-neutral-400" /></div>
           </div>
 
           <!-- Details tab -->
@@ -73,22 +73,59 @@
           </dl>
 
           <!-- Variables tab -->
-          <div v-else-if="panelTab === 'variables'" class="flex-1 overflow-y-auto">
-            <div class="mb-3 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+          <div v-else-if="panelTab === 'variables'" class="flex-1 flex flex-col overflow-y-auto">
+            <div class="mb-3 flex items-start justify-between gap-2">
+              <div class="flex-1 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
               Variables can reference other variables using <code v-pre class="rounded bg-indigo-100 px-1 font-mono dark:bg-indigo-900">${{NAMESPACE.VAR}}</code> syntax.
               <a href="https://docs.railway.com/variables/reference#template-syntax" target="_blank" class="underline hover:text-indigo-600 dark:hover:text-indigo-200">Learn more</a>
+              </div>
+              <button
+                @click="showAddVariable = true"
+                class="shrink-0 flex items-center gap-1 rounded-lg bg-neutral-700 px-3 py-1.5 text-xs font-medium text-neutral-100 hover:bg-neutral-600"
+              >
+                <Icon icon="carbon:add" width="14" height="14" /> Add
+              </button>
             </div>
+            <AddVariableModal :open="showAddVariable" :service-id="service!.id" @close="showAddVariable = false" />
             <div v-if="variableStore.loading && !serviceVariables" class="flex items-center gap-2 text-sm text-neutral-500">
               <Icon icon="carbon:renew" width="16" height="16" class="animate-spin" /> Loading variables...
             </div>
             <div v-else-if="variableStore.error" class="text-sm text-red-500">{{ variableStore.error }}</div>
             <div v-else-if="serviceVariables && Object.keys(serviceVariables).length === 0" class="text-sm text-neutral-500">No variables set.</div>
             <div v-else-if="serviceVariables" class="flex flex-col gap-2">
-              <div v-for="[name, value] in sortedVariables" :key="name" class="rounded border border-neutral-200 px-3 py-2 dark:border-neutral-600">
-                <div class="text-xs font-medium text-neutral-500">{{ name }}</div>
-                <div class="mt-0.5 break-all font-mono text-sm">{{ value }}</div>
+              <div v-for="[name, value] in sortedVariables" :key="name" class="group flex items-start justify-between gap-2 rounded border border-neutral-200 px-3 py-2 dark:border-neutral-600">
+                <div class="min-w-0 flex-1">
+                  <div class="text-xs font-medium text-neutral-500">{{ name }}</div>
+                  <div class="mt-0.5 break-all font-mono text-sm">{{ value }}</div>
+                </div>
+                <div class="flex shrink-0 gap-0.5">
+                  <button @click="copyValue(value)" title="Copy value" class="rounded p-1 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-600 dark:hover:bg-neutral-700 dark:hover:text-neutral-300">
+                    <Icon icon="carbon:copy" width="14" height="14" />
+                  </button>
+                  <button @click="openEdit(name, value)" title="Edit variable" class="rounded p-1 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-600 dark:hover:bg-neutral-700 dark:hover:text-neutral-300">
+                    <Icon icon="carbon:edit" width="14" height="14" />
+                  </button>
+                  <button @click="confirmDeleteVariable(name)" title="Delete variable" class="rounded p-1 text-neutral-400 hover:bg-neutral-200 hover:text-red-500 dark:hover:bg-neutral-700 dark:hover:text-red-400">
+                    <Icon icon="carbon:trash-can" width="14" height="14" />
+                  </button>
+                </div>
               </div>
             </div>
+            <EditVariableModal
+              :open="!!editingVariable"
+              :service-id="service!.id"
+              :var-name="editingVariable?.name ?? ''"
+              :var-value="editingVariable?.value ?? ''"
+              @close="editingVariable = null"
+            />
+            <ConfirmDeleteModal
+              :open="!!deletingVariableName"
+              title="Delete Variable"
+              :name="deletingVariableName ?? ''"
+              :loading="deletingVariable"
+              @close="deletingVariableName = null"
+              @confirm="removeVariable"
+            />
           </div>
         </div>
       </div>
@@ -100,6 +137,9 @@
 import { computed, ref, Transition, Teleport, watch, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Icon } from "@iconify/vue";
+import AddVariableModal from "./modals/AddVariableModal.vue";
+import ConfirmDeleteModal from "./modals/ConfirmDeleteModal.vue";
+import EditVariableModal from "./modals/EditVariableModal.vue";
 import { useProjectStore, useServiceStore, useVariableStore } from "../stores";
 import { formatDate } from "../helpers";
 
@@ -115,6 +155,34 @@ const service = computed(() => {
 });
 
 const panelTab = ref<"details" | "variables">("details");
+const showAddVariable = ref(false);
+const editingVariable = ref<{ name: string; value: string } | null>(null);
+
+function copyValue(value: string) {
+  navigator.clipboard.writeText(value);
+}
+
+function openEdit(name: string, value: string) {
+  editingVariable.value = { name, value };
+}
+
+const deletingVariableName = ref<string | null>(null);
+const deletingVariable = ref(false);
+
+function confirmDeleteVariable(name: string) {
+  deletingVariableName.value = name;
+}
+
+async function removeVariable() {
+  if (!service.value || !projectsStore.selectedProjectId || !deletingVariableName.value) return;
+  deletingVariable.value = true;
+  try {
+    await variableStore.remove(projectsStore.selectedProjectId, service.value.id, deletingVariableName.value);
+    deletingVariableName.value = null;
+  } finally {
+    deletingVariable.value = false;
+  }
+}
 
 const serviceVariables = computed(() =>
   service.value ? variableStore.byService[service.value.id] : undefined,

@@ -4,9 +4,9 @@
 
     <div class="fixed inset-0 flex items-center justify-center p-4">
       <DialogPanel class="w-full max-w-sm rounded-lg bg-neutral-50 p-6 shadow-xl dark:bg-neutral-800">
-        <DialogTitle class="text-lg font-semibold mb-2">Delete Service</DialogTitle>
+        <DialogTitle class="text-lg font-semibold mb-2">{{ title }}</DialogTitle>
         <p class="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
-          Are you sure you want to delete <span class="font-medium text-neutral-700 dark:text-neutral-200">{{ serviceName }}</span>? This action cannot be undone.
+          Are you sure you want to delete <span class="font-medium text-neutral-700 dark:text-neutral-200">{{ name }}</span>? This action cannot be undone.
         </p>
 
         <div class="flex justify-end gap-2">
@@ -38,7 +38,7 @@
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/vue";
 import { Icon } from "@iconify/vue";
 
-const props = defineProps<{ open: boolean; serviceName: string; loading: boolean }>();
+const props = defineProps<{ open: boolean; title: string; name: string; loading: boolean }>();
 const emit = defineEmits<{ close: []; confirm: [] }>();
 
 function handleClose() {

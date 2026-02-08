@@ -21,5 +21,18 @@ export const useVariableStore = defineStore("variables", {
         this.loading = false;
       }
     },
+    async upsert(projectId: string, serviceId: string, name: string, value: string) {
+      await api.upsertVariable(projectId, serviceId, name, value);
+      if (!this.byService[serviceId]) {
+        this.byService[serviceId] = {};
+      }
+      this.byService[serviceId][name] = value;
+    },
+    async remove(projectId: string, serviceId: string, name: string) {
+      await api.deleteVariable(projectId, serviceId, name);
+      if (this.byService[serviceId]) {
+        delete this.byService[serviceId][name];
+      }
+    },
   },
 });

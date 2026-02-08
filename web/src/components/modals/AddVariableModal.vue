@@ -4,45 +4,34 @@
 
     <div class="fixed inset-0 flex items-center justify-center p-4">
       <DialogPanel class="w-full max-w-md rounded-lg bg-neutral-50 p-6 shadow-xl dark:bg-neutral-800">
-        <DialogTitle class="text-lg font-semibold mb-4">Create Container</DialogTitle>
+        <DialogTitle class="text-lg font-semibold mb-4">Add Variable</DialogTitle>
 
         <form @submit.prevent="onSubmit" class="flex flex-col gap-4">
           <div class="flex flex-col gap-1">
-            <label for="name" class="text-sm font-medium">Name</label>
+            <label for="var-name" class="text-sm font-medium">Name</label>
             <input
-              id="name"
+              id="var-name"
               v-model="name"
               type="text"
               required
               :disabled="loading"
-              class="rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-700 disabled:opacity-50"
+              placeholder="MY_VARIABLE"
+              class="rounded border border-neutral-300 px-3 py-2 font-mono text-sm dark:border-neutral-600 dark:bg-neutral-700 disabled:opacity-50"
             />
           </div>
 
           <div class="flex flex-col gap-1">
-            <label for="icon" class="text-sm font-medium">Icon URL</label>
-            <div class="flex items-center gap-2">
-              <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-neutral-300 dark:border-neutral-600 overflow-hidden bg-white dark:bg-neutral-700">
-                <img
-                  v-if="icon && !iconError"
-                  :src="icon"
-                  class="h-full w-full object-contain"
-                  @error="iconError = true"
-                  alt="icon for service {{name}}"
-                />
-                <Icon v-else icon="carbon:image" class="text-neutral-400" width="20" height="20" />
-              </div>
-              <input
-                id="icon"
-                v-model="icon"
-                type="url"
-                placeholder="https://..."
-                :disabled="loading"
-                @input="iconError = false"
-                class="w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-700 disabled:opacity-50"
-              />
-            </div>
+            <label for="var-value" class="text-sm font-medium">Value</label>
+            <textarea
+              id="var-value"
+              v-model="value"
+              :disabled="loading"
+              rows="3"
+              class="rounded border border-neutral-300 px-3 py-2 font-mono text-sm dark:border-neutral-600 dark:bg-neutral-700 disabled:opacity-50"
+            />
           </div>
+
+          <div v-if="error" class="text-sm text-red-500">{{ error }}</div>
 
           <div class="flex justify-end gap-2 mt-2">
             <button
@@ -59,7 +48,7 @@
               class="flex items-center gap-2 rounded bg-neutral-700 px-4 py-2 text-sm font-medium text-neutral-100 hover:bg-neutral-600 disabled:opacity-50"
             >
               <Icon v-if="loading" icon="gg:spinner" width="16" height="16" class="animate-spin" />
-              {{ loading ? "Creating..." : "Create" }}
+              {{ loading ? "Adding..." : "Add" }}
             </button>
           </div>
         </form>
@@ -72,16 +61,17 @@
 import { ref } from "vue";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/vue";
 import { Icon } from "@iconify/vue";
-import { useServiceStore } from "../stores";
+import { useProjectStore, useVariableStore } from "../../stores";
 
-defineProps<{ open: boolean }>();
+const props = defineProps<{ open: boolean; serviceId: string }>();
 const emit = defineEmits<{ close: [] }>();
 
-const serviceStore = useServiceStore();
+const projectStore = useProjectStore();
+const variableStore = useVariableStore();
 const name = ref("");
-const icon = ref("");
-const iconError = ref(false);
+const value = ref("");
 const loading = ref(false);
+const error = ref<string | null>(null);
 
 function handleClose() {
   if (!loading.value) {
@@ -91,15 +81,19 @@ function handleClose() {
 
 async function onSubmit() {
   loading.value = true;
+  error.value = null;
+
+  if (!projectStore.selectedProjectId) {
+    return;
+  }
+
   try {
-    await serviceStore.create({
-      name: name.value,
-      ...(icon.value ? { icon: icon.value } : {}),
-    });
+    await variableStore.upsert(projectStore.selectedProjectId, props.serviceId, name.value, value.value);
     name.value = "";
-    icon.value = "";
-    iconError.value = false;
+    value.value = "";
     emit("close");
+  } catch {
+    error.value = "Failed to add variable";
   } finally {
     loading.value = false;
   }

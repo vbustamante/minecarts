@@ -71,7 +71,8 @@
 
     <ConfirmDeleteModal
       :open="!!serviceToDelete"
-      :service-name="serviceToDelete?.name ?? ''"
+      title="Delete Service"
+      :name="serviceToDelete?.name ?? ''"
       :loading="deleting"
       @close="serviceToDelete = null"
       @confirm="onDelete"
@@ -86,8 +87,8 @@ import { computed, ref, watch, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Icon } from "@iconify/vue";
 import ProjectPicker from "../components/ProjectPicker.vue";
-import CreateServiceModal from "../components/CreateServiceModal.vue";
-import ConfirmDeleteModal from "../components/ConfirmDeleteModal.vue";
+import CreateServiceModal from "../components/modals/CreateServiceModal.vue";
+import ConfirmDeleteModal from "../components/modals/ConfirmDeleteModal.vue";
 import ServiceDetailsPanel from "../components/ServiceDetailsPanel.vue";
 import { useProjectStore, useServiceStore } from "../stores";
 import type { Service } from "../api/types";

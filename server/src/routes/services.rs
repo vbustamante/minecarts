@@ -17,6 +17,7 @@ pub async fn list(
 #[derive(Deserialize, Debug, Clone)]
 pub struct CreateServiceRequest {
     name: String,
+    image: String,
     icon: Option<String>,
 }
 
@@ -27,7 +28,7 @@ pub async fn create(
 ) -> Result<(StatusCode, Json<RailwayService>), AppError> {
     let req = RailwayCreateServiceRequest {
         project_id,
-        image: "hello-world".to_string(),
+        image: req.image,
         name: req.name,
         icon: req.icon,
     };
