@@ -21,6 +21,7 @@ query project($id: String!) {
                         edges {
                             node {
                                 serviceId
+                                createdAt
                                 status
                                 instances {
                                     id

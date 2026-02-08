@@ -26,7 +26,9 @@ pub struct ServiceWithDeployment {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeploymentInfo {
+    pub created_at: String,
     pub status: Option<String>,
     pub instances: Vec<Instance>,
     pub image: Option<String>,
@@ -68,10 +70,11 @@ struct DeploymentEdge {
     node: Deployment,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Deployment {
     service_id: String,
+    created_at: String,
     status: Option<String>,
     instances: Vec<Instance>,
     meta: Option<DeploymentMeta>,
@@ -163,7 +166,16 @@ impl RailwayService {
 
         let mut deployments_by_service: HashMap<String, Deployment> = HashMap::new();
         for edge in production_env.deployments.edges {
-            deployments_by_service.insert(edge.node.service_id.clone(), edge.node);
+            let deployment = edge.node;
+            let service_id = deployment.service_id.clone();
+            deployments_by_service
+                .entry(service_id)
+                .and_modify(|existing| {
+                    if deployment.created_at > existing.created_at {
+                        *existing = deployment.clone();
+                    }
+                })
+                .or_insert(deployment);
         }
 
         let services = project
@@ -176,6 +188,7 @@ impl RailwayService {
                 Some(ServiceWithDeployment {
                     service,
                     deployment: DeploymentInfo {
+                        created_at: deployment.created_at,
                         status: deployment.status,
                         instances: deployment.instances,
                         image: deployment.meta.and_then(|m| m.image),
