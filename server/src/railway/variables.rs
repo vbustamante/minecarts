@@ -5,8 +5,11 @@ use crate::railway::GraphQLResponse;
 
 const GRAPHQL_URL: &str = "https://backboard.railway.com/graphql/v2";
 
+#[derive(Debug, thiserror::Error)]
 pub enum VariableError {
-    Request(#[allow(dead_code)] reqwest::Error),
+    #[error("{0}")]
+    Request(#[from] reqwest::Error),
+    #[error("No production environment")]
     NoProductionEnvironment,
 }
 
@@ -69,13 +72,10 @@ async fn get_production_environment_id(
         .bearer_auth(access_token)
         .json(&body)
         .send()
-        .await
-        .map_err(VariableError::Request)?
-        .error_for_status()
-        .map_err(VariableError::Request)?
+        .await?
+        .error_for_status()?
         .json()
-        .await
-        .map_err(VariableError::Request)?;
+        .await?;
 
     res.data
         .project
@@ -110,13 +110,10 @@ pub async fn list(
         .bearer_auth(access_token)
         .json(&body)
         .send()
-        .await
-        .map_err(VariableError::Request)?
-        .error_for_status()
-        .map_err(VariableError::Request)?
+        .await?
+        .error_for_status()?
         .json()
-        .await
-        .map_err(VariableError::Request)?;
+        .await?;
 
     Ok(res.data.variables_for_service_deployment)
 }
@@ -149,13 +146,10 @@ pub async fn upsert(
         .bearer_auth(access_token)
         .json(&body)
         .send()
-        .await
-        .map_err(VariableError::Request)?
-        .error_for_status()
-        .map_err(VariableError::Request)?
+        .await?
+        .error_for_status()?
         .json()
-        .await
-        .map_err(VariableError::Request)?;
+        .await?;
 
     Ok(res.data.variable_upsert)
 }
@@ -186,13 +180,10 @@ pub async fn delete(
         .bearer_auth(access_token)
         .json(&body)
         .send()
-        .await
-        .map_err(VariableError::Request)?
-        .error_for_status()
-        .map_err(VariableError::Request)?
+        .await?
+        .error_for_status()?
         .json()
-        .await
-        .map_err(VariableError::Request)?;
+        .await?;
 
     Ok(res.data.variable_delete)
 }

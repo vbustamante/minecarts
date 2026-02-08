@@ -77,8 +77,11 @@ struct Deployment {
     meta: Option<DeploymentMeta>,
 }
 
+#[derive(Debug, thiserror::Error)]
 pub enum ServiceError {
-    Request(#[allow(dead_code)] reqwest::Error),
+    #[error("{0}")]
+    Request(#[from] reqwest::Error),
+    #[error("No production environment")]
     NoProductionEnvironment,
 }
 
@@ -143,13 +146,10 @@ impl RailwayService {
             .bearer_auth(access_token)
             .json(&body)
             .send()
-            .await
-            .map_err(ServiceError::Request)?
-            .error_for_status()
-            .map_err(ServiceError::Request)?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .map_err(ServiceError::Request)?;
+            .await?;
 
         let project = res.data.project;
 

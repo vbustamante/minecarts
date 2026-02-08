@@ -1,11 +1,11 @@
 use axum::extract::{Query, State};
-use axum::http::StatusCode;
 use axum::response::{Json, Redirect};
 use axum_extra::extract::cookie::{Cookie, CookieJar};
 use redis::AsyncCommands;
 use serde::Deserialize;
 use uuid::Uuid;
 
+use crate::error::AppError;
 use crate::extractors::{UserSession, SESSION_COOKIE};
 use crate::models::Session;
 use crate::railway::auth::{self as railway_auth, RailwayUser};
@@ -29,22 +29,20 @@ pub async fn callback(
     State(state): State<SharedState>,
     Query(params): Query<CallbackParams>,
     jar: CookieJar,
-) -> Result<(CookieJar, Redirect), StatusCode> {
+) -> Result<(CookieJar, Redirect), AppError> {
     // Validate CSRF state
     let removed = state.csrf_states.write().await.remove(&params.state);
     if !removed {
-        return Err(StatusCode::BAD_REQUEST);
+        return Err(AppError::BadRequest("Invalid CSRF state".into()));
     }
 
     let client = reqwest::Client::new();
 
     let railway_auth = railway_auth::exchange_code(&client, &state.oauth_config, &params.code)
-        .await
-        .map_err(|_| StatusCode::BAD_GATEWAY)?;
+        .await?;
 
     let user = railway_auth::fetch_user(&client, &railway_auth.access_token)
-        .await
-        .map_err(|_| StatusCode::BAD_GATEWAY)?;
+        .await?;
 
     // Create session
     let session_id = Uuid::new_v4();
@@ -52,15 +50,13 @@ pub async fn callback(
         user,
         railway_auth,
     };
-    let session_json =
-        serde_json::to_string(&session).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let session_json = serde_json::to_string(&session)?;
 
     let key = format!("session:{session_id}");
     let mut redis = state.redis.clone();
     let _ : () = redis
         .set(&key, &session_json)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .await?;
 
     let cookie = Cookie::build((SESSION_COOKIE, session_id.to_string()))
         .path("/")
