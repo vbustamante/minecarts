@@ -32,6 +32,8 @@ pub struct DeploymentInfo {
     pub status: Option<String>,
     pub instances: Vec<Instance>,
     pub image: Option<String>,
+    pub repo: Option<String>,
+    pub branch: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +44,8 @@ pub struct Instance {
 #[derive(Debug, Clone, Deserialize)]
 pub struct DeploymentMeta {
     pub image: Option<String>,
+    pub repo: Option<String>,
+    pub branch: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -185,13 +189,20 @@ impl RailwayService {
             .map(|e| e.node)
             .filter_map(|service| {
                 let deployment = deployments_by_service.remove(&service.id)?;
+
+                let (image, repo, branch) = deployment.meta
+                    .map(|meta| (meta.image, meta.repo, meta.branch))
+                    .unwrap_or_default();
+
                 Some(ServiceWithDeployment {
                     service,
                     deployment: DeploymentInfo {
                         created_at: deployment.created_at,
                         status: deployment.status,
                         instances: deployment.instances,
-                        image: deployment.meta.and_then(|m| m.image),
+                        image,
+                        repo,
+                        branch,
                     },
                 })
             })

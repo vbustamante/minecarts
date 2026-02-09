@@ -39,6 +39,7 @@ impl ServiceConfig {
 
 #[tokio::main]
 async fn main() {
+    println!("Will start server");
     let _ = dotenvy::from_filename(".env");
     let config = ServiceConfig::from_env();
     let server_host = config.server_host.clone();

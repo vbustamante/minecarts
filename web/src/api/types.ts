@@ -1,7 +1,9 @@
 export interface DeploymentInfo {
   status: string | null;
   instances: { id: string }[];
-  image: string | null;
+  image?: string;
+  repo?: string;
+  branch?: string;
 }
 
 export interface Service {
@@ -11,7 +13,7 @@ export interface Service {
   createdAt: string;
   updatedAt: string;
   projectId: string;
-  deployment: DeploymentInfo;
+  deployment?: DeploymentInfo;
 }
 
 export interface CreateServiceRequest {

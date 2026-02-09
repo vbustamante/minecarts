@@ -91,7 +91,7 @@
               <Icon icon="carbon:renew" width="16" height="16" class="animate-spin" /> Loading variables...
             </div>
             <div v-else-if="variableStore.error" class="text-sm text-red-500">{{ variableStore.error }}</div>
-            <div v-else-if="serviceVariables && Object.keys(serviceVariables).length === 0" class="text-sm text-neutral-500">No variables set.</div>
+            <div v-else-if="serviceVariables && Object.keys(serviceVariables).length === 0" class="text-sm text-neutral-500 text-center">No variables set.</div>
             <div v-else-if="serviceVariables" class="flex flex-col gap-2">
               <div v-for="[name, value] in sortedVariables" :key="name" class="group flex items-start justify-between gap-2 rounded border border-neutral-200 px-3 py-2 dark:border-neutral-600">
                 <div class="min-w-0 flex-1">

@@ -17,7 +17,7 @@
       <div class="min-w-0 text-left" >
         <p class="font-medium truncate">
           {{ service.name }}
-          <span class="text-xs text-neutral-500 ml-2">{{ service.deployment?.image ?? "Loading..." }}</span>
+          <span class="text-xs text-neutral-500 ml-2">{{ deploymentDetails ?? "unknown" }}</span>
         </p>
         <div class="flex items-center gap-3 text-xs text-neutral-400 dark:text-neutral-500 mt-1">
           <span>Created {{ formatDate(service.createdAt) }}</span>
@@ -50,6 +50,15 @@ defineEmits<{
   (e: 'delete', id: string): void
   (e: 'select', id: string): void
 }>();
+
+const deploymentDetails = computed(() => {
+  const deployment = props.service.deployment;
+  if (!deployment) return "Loading...";
+  if (deployment.image) return deployment.image;
+  if (deployment.repo) return `${deployment.repo}${deployment.branch ? ' (' + deployment.branch + ')' : ''}`;
+
+  return undefined;
+})
 
 const statusDotColor = computed(() => {
   const status = props.service.deployment?.status;
