@@ -16,6 +16,7 @@ impl FromRequestParts<SharedState> for UserSession {
         parts: &mut Parts,
         state: &SharedState,
     ) -> Result<Self, Self::Rejection> {
+        println!("UserSession extractor");
         let auth_header = parts
             .headers
             .get(axum::http::header::AUTHORIZATION)
