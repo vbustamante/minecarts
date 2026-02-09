@@ -19,41 +19,60 @@
             />
           </div>
 
-          <div class="flex flex-col gap-1">
-            <label for="image" class="text-sm font-medium">Docker Image</label>
-            <input
-              id="image"
-              v-model="image"
-              type="text"
-              required
-              :disabled="loading"
-              placeholder="nginx, postgres:16, ghcr.io/org/repo..."
-              class="rounded border border-neutral-300 px-3 py-2 font-mono text-sm dark:border-neutral-600 dark:bg-neutral-700 disabled:opacity-50"
-            />
-          </div>
-
-          <div class="flex flex-col gap-1">
-            <label for="icon" class="text-sm font-medium">Icon URL</label>
-            <div class="flex items-center gap-2">
-              <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-neutral-300 dark:border-neutral-600 overflow-hidden bg-white dark:bg-neutral-700">
-                <img
-                  v-if="icon && !iconError"
-                  :src="icon"
-                  class="h-full w-full object-contain"
-                  @error="iconError = true"
-                  alt="icon for service {{name}}"
-                />
-                <Icon v-else icon="carbon:image" class="text-neutral-400" width="20" height="20" />
-              </div>
-              <input
-                id="icon"
-                v-model="icon"
-                type="url"
-                placeholder="https://..."
-                :disabled="loading"
-                @input="iconError = false"
-                class="w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-700 disabled:opacity-50"
+          <!-- Advanced Settings -->
+          <div class="rounded border border-neutral-200 dark:border-neutral-600">
+            <div
+              @click="showAdvanced = !showAdvanced"
+              class="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 hover:cursor-pointer"
+            >
+              Advanced Settings
+              <Icon
+                icon="carbon:chevron-down"
+                width="16"
+                height="16"
+                class="transition-transform"
+                :class="showAdvanced ? 'rotate-180' : ''"
               />
+            </div>
+
+            <div v-if="showAdvanced" class="flex flex-col gap-4 border-t border-neutral-200 px-3 py-3 dark:border-neutral-600">
+              <div class="flex flex-col gap-1">
+                <label for="image" class="text-sm font-medium">Docker Image</label>
+                <input
+                  id="image"
+                  v-model="image"
+                  type="text"
+                  required
+                  :disabled="loading"
+                  placeholder="itzg/minecraft-server"
+                  class="rounded border border-neutral-300 px-3 py-2 font-mono text-sm dark:border-neutral-600 dark:bg-neutral-700 disabled:opacity-50"
+                />
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <label for="icon" class="text-sm font-medium">Icon URL</label>
+                <div class="flex items-center gap-2">
+                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-neutral-300 dark:border-neutral-600 overflow-hidden bg-white dark:bg-neutral-700">
+                    <img
+                      v-if="icon && !iconError"
+                      :src="icon"
+                      class="h-full w-full object-contain"
+                      @error="iconError = true"
+                      alt="icon for service {{name}}"
+                    />
+                    <Icon v-else icon="carbon:image" class="text-neutral-400" width="20" height="20" />
+                  </div>
+                  <input
+                    id="icon"
+                    v-model="icon"
+                    type="url"
+                    placeholder="https://..."
+                    :disabled="loading"
+                    @input="iconError = false"
+                    class="w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-700 disabled:opacity-50"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -87,14 +106,18 @@ import { Dialog, DialogPanel, DialogTitle } from "@headlessui/vue";
 import { Icon } from "@iconify/vue";
 import { useServiceStore } from "../../stores";
 
+const DEFAULT_IMAGE = "itzg/minecraft-server";
+const DEFAULT_ICON = "https://i.imgur.com/RcyJ789.png";
+
 defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 
 const serviceStore = useServiceStore();
 const name = ref("");
-const image = ref("");
-const icon = ref("");
+const image = ref(DEFAULT_IMAGE);
+const icon = ref(DEFAULT_ICON);
 const iconError = ref(false);
+const showAdvanced = ref(false);
 const loading = ref(false);
 
 function handleClose() {
@@ -112,9 +135,10 @@ async function onSubmit() {
       ...(icon.value ? { icon: icon.value } : {}),
     });
     name.value = "";
-    image.value = "";
-    icon.value = "";
+    image.value = DEFAULT_IMAGE;
+    icon.value = DEFAULT_ICON;
     iconError.value = false;
+    showAdvanced.value = false;
     emit("close");
   } finally {
     loading.value = false;
