@@ -84,7 +84,7 @@ async fn main() {
             axum::http::Method::PUT,
             axum::http::Method::DELETE,
         ])
-        .allow_headers([axum::http::header::CONTENT_TYPE])
+        .allow_headers([axum::http::header::CONTENT_TYPE, axum::http::header::AUTHORIZATION])
         .allow_credentials(true);
 
     let app = Router::new()

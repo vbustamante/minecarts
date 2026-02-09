@@ -1,12 +1,12 @@
 use axum::extract::{Query, State};
+use axum::http::HeaderMap;
 use axum::response::{Json, Redirect};
-use axum_extra::extract::cookie::{Cookie, CookieJar};
 use redis::AsyncCommands;
 use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::error::AppError;
-use crate::extractors::{UserSession, SESSION_COOKIE};
+use crate::extractors::UserSession;
 use crate::models::Session;
 use crate::railway::auth::{self as railway_auth, RailwayUser};
 use crate::state::SharedState;
@@ -28,8 +28,7 @@ pub struct CallbackParams {
 pub async fn callback(
     State(state): State<SharedState>,
     Query(params): Query<CallbackParams>,
-    jar: CookieJar,
-) -> Result<(CookieJar, Redirect), AppError> {
+) -> Result<Redirect, AppError> {
     // Validate CSRF state
     let removed = state.csrf_states.write().await.remove(&params.state);
     if !removed {
@@ -58,13 +57,8 @@ pub async fn callback(
         .set(&key, &session_json)
         .await?;
 
-    let cookie = Cookie::build((SESSION_COOKIE, session_id.to_string()))
-        .path("/")
-        .http_only(true)
-        .secure(true)
-        .same_site(axum_extra::extract::cookie::SameSite::None);
-
-    Ok((jar.add(cookie), Redirect::to(&state.frontend_url)))
+    let redirect_url = format!("{}?session_id={}", state.frontend_url, session_id);
+    Ok(Redirect::to(&redirect_url))
 }
 
 pub async fn me(UserSession(session): UserSession) -> Json<RailwayUser> {
@@ -73,22 +67,19 @@ pub async fn me(UserSession(session): UserSession) -> Json<RailwayUser> {
 
 pub async fn logout(
     State(state): State<SharedState>,
-    jar: CookieJar,
-) -> (CookieJar, Json<serde_json::Value>) {
-    if let Some(cookie) = jar.get(SESSION_COOKIE) {
-        if let Ok(session_id) = cookie.value().parse::<Uuid>() {
+    headers: HeaderMap,
+) -> Json<serde_json::Value> {
+    if let Some(auth_header) = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+    {
+        if let Ok(session_id) = auth_header.parse::<Uuid>() {
             let key = format!("session:{session_id}");
             let mut redis = state.redis.clone();
             let _: () = redis.del(&key).await.unwrap_or(());
         }
     }
 
-    let removal = Cookie::build((SESSION_COOKIE, ""))
-        .path("/")
-        .http_only(true)
-        .secure(true)
-        .same_site(axum_extra::extract::cookie::SameSite::None)
-        .removal();
-
-    (jar.remove(removal), Json(serde_json::json!({"ok": true})))
+    Json(serde_json::json!({"ok": true}))
 }

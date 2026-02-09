@@ -31,9 +31,15 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
+  const auth = useAuthStore();
+
+  if (to.query.session_id) {
+    auth.setToken(to.query.session_id as string);
+    return { path: to.path, query: {}, replace: true };
+  }
+
   if (to.meta.skipAuth) return;
 
-  const auth = useAuthStore();
   await auth.checkAuth();
 
   if (!auth.isAuthenticated) {

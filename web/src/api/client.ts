@@ -4,7 +4,14 @@ import router from "../router";
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
-  withCredentials: true,
+});
+
+client.interceptors.request.use((config) => {
+  const token = localStorage.getItem("session_token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 const skipInterceptor = new Set(["/auth/me", "/auth/logout"]);

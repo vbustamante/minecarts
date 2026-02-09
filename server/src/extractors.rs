@@ -1,15 +1,12 @@
 use axum::extract::FromRequestParts;
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use axum_extra::extract::cookie::CookieJar;
 use chrono::{Duration, Utc};
 use redis::AsyncCommands;
 use uuid::Uuid;
 
 use crate::models::Session;
 use crate::state::SharedState;
-
-pub const SESSION_COOKIE: &str = "session_id";
 
 pub struct UserSession(pub Session);
 
@@ -20,14 +17,14 @@ impl FromRequestParts<SharedState> for UserSession {
         parts: &mut Parts,
         state: &SharedState,
     ) -> Result<Self, Self::Rejection> {
-        let jar = CookieJar::from_request_parts(parts, state)
-            .await
-            .map_err(|_| StatusCode::UNAUTHORIZED)?;
-
-        let session_id = jar
-            .get(SESSION_COOKIE)
-            .and_then(|c| c.value().parse::<Uuid>().ok())
+        let auth_header = parts
+            .headers
+            .get(axum::http::header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.strip_prefix("Bearer "))
             .ok_or(StatusCode::UNAUTHORIZED)?;
+
+        let session_id: Uuid = auth_header.parse().map_err(|_| StatusCode::UNAUTHORIZED)?;
 
         let key = format!("session:{session_id}");
         let mut redis = state.redis.clone();
@@ -35,7 +32,7 @@ impl FromRequestParts<SharedState> for UserSession {
         let session_json: String = redis
             .get(&key)
             .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
         let session: Session =
             serde_json::from_str(&session_json).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
