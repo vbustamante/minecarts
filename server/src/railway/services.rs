@@ -1,9 +1,10 @@
-use std::collections::HashMap;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use crate::railway::GraphQLResponse;
 
 const GRAPHQL_URL: &str = "https://backboard.railway.com/graphql/v2";
+
+// --- Public types sent to frontend ---
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RailwayService {
@@ -22,13 +23,13 @@ pub struct RailwayService {
 pub struct ServiceWithDeployment {
     #[serde(flatten)]
     pub service: RailwayService,
-    pub deployment: DeploymentInfo,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deployment: Option<DeploymentInfo>,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeploymentInfo {
-    pub created_at: String,
     pub status: Option<String>,
     pub instances: Vec<Instance>,
     pub image: Option<String>,
@@ -41,48 +42,73 @@ pub struct Instance {
     pub id: String,
 }
 
+// --- GQL response types ---
+
 #[derive(Debug, Clone, Deserialize)]
-pub struct DeploymentMeta {
-    pub image: Option<String>,
-    pub repo: Option<String>,
-    pub branch: Option<String>,
+struct GqlDeploymentMeta {
+    image: Option<String>,
+    repo: Option<String>,
+    branch: Option<String>,
 }
 
 #[derive(Deserialize)]
-struct EnvironmentsConnection {
-    edges: Vec<EnvironmentEdge>,
+struct GqlDeployment {
+    status: Option<String>,
+    instances: Vec<Instance>,
+    meta: Option<GqlDeploymentMeta>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GqlServiceRef {
+    icon: Option<String>,
+    project_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GqlServiceInstance {
+    service_id: String,
+    service_name: String,
+    service: GqlServiceRef,
+    created_at: String,
+    updated_at: String,
+    latest_deployment: Option<GqlDeployment>,
+}
+
+#[derive(Deserialize)]
+struct ServiceInstanceEdge {
+    node: GqlServiceInstance,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GqlEnvironment {
+    name: String,
+    service_instances: Connection<ServiceInstanceEdge>,
 }
 
 #[derive(Deserialize)]
 struct EnvironmentEdge {
-    node: Environment,
+    node: GqlEnvironment,
 }
 
 #[derive(Deserialize)]
-struct Environment {
-    name: String,
-    deployments: DeploymentsConnection,
+struct Connection<E> {
+    edges: Vec<E>,
 }
 
 #[derive(Deserialize)]
-struct DeploymentsConnection {
-    edges: Vec<DeploymentEdge>,
+struct ProjectData {
+    project: ProjectNode,
 }
 
 #[derive(Deserialize)]
-struct DeploymentEdge {
-    node: Deployment,
+struct ProjectNode {
+    environments: Connection<EnvironmentEdge>,
 }
 
-#[derive(Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Deployment {
-    service_id: String,
-    created_at: String,
-    status: Option<String>,
-    instances: Vec<Instance>,
-    meta: Option<DeploymentMeta>,
-}
+// --- Error / request types ---
 
 #[derive(Debug, thiserror::Error)]
 pub enum ServiceError {
@@ -104,27 +130,6 @@ pub struct CreateServiceRequest {
 pub struct UpdateServiceRequest {
     pub name: Option<String>,
     pub icon: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct ProjectData {
-    project: ProjectNode,
-}
-
-#[derive(Deserialize)]
-struct ProjectNode {
-    services: ServicesConnection,
-    environments: EnvironmentsConnection,
-}
-
-#[derive(Deserialize)]
-struct ServicesConnection {
-    edges: Vec<ServiceEdge>,
-}
-
-#[derive(Deserialize)]
-struct ServiceEdge {
-    node: RailwayService,
 }
 
 #[derive(Deserialize)]
@@ -158,9 +163,9 @@ impl RailwayService {
             .json()
             .await?;
 
-        let project = res.data.project;
-
-        let production_env = project
+        let production_env = res
+            .data
+            .project
             .environments
             .edges
             .into_iter()
@@ -168,43 +173,37 @@ impl RailwayService {
             .find(|env| env.name == "production")
             .ok_or(ServiceError::NoProductionEnvironment)?;
 
-        let mut deployments_by_service: HashMap<String, Deployment> = HashMap::new();
-        for edge in production_env.deployments.edges {
-            let deployment = edge.node;
-            let service_id = deployment.service_id.clone();
-            deployments_by_service
-                .entry(service_id)
-                .and_modify(|existing| {
-                    if deployment.created_at > existing.created_at {
-                        *existing = deployment.clone();
-                    }
-                })
-                .or_insert(deployment);
-        }
-
-        let services = project
-            .services
+        let services = production_env
+            .service_instances
             .edges
             .into_iter()
             .map(|e| e.node)
-            .filter_map(|service| {
-                let deployment = deployments_by_service.remove(&service.id)?;
+            .map(|si| {
+                let deployment = si.latest_deployment.map(|d| {
+                    let (image, repo, branch) = d.meta
+                        .map(|meta| (meta.image, meta.repo, meta.branch))
+                        .unwrap_or_default();
 
-                let (image, repo, branch) = deployment.meta
-                    .map(|meta| (meta.image, meta.repo, meta.branch))
-                    .unwrap_or_default();
-
-                Some(ServiceWithDeployment {
-                    service,
-                    deployment: DeploymentInfo {
-                        created_at: deployment.created_at,
-                        status: deployment.status,
-                        instances: deployment.instances,
+                    DeploymentInfo {
+                        status: d.status,
+                        instances: d.instances,
                         image,
                         repo,
                         branch,
+                    }
+                });
+
+                ServiceWithDeployment {
+                    service: RailwayService {
+                        id: si.service_id,
+                        name: si.service_name,
+                        icon: si.service.icon,
+                        created_at: si.created_at,
+                        updated_at: si.updated_at,
+                        project_id: si.service.project_id,
                     },
-                })
+                    deployment,
+                }
             })
             .collect();
 

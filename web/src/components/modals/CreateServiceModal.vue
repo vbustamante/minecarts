@@ -4,7 +4,7 @@
 
     <div class="fixed inset-0 flex items-center justify-center p-4">
       <DialogPanel class="w-full max-w-md rounded-lg bg-neutral-50 p-6 shadow-xl dark:bg-neutral-800">
-        <DialogTitle class="text-lg font-semibold mb-4">Create Container</DialogTitle>
+        <DialogTitle class="text-lg font-semibold mb-4">Create Service</DialogTitle>
 
         <form @submit.prevent="onSubmit" class="flex flex-col gap-4">
           <div class="flex flex-col gap-1">

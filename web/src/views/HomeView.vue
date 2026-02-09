@@ -22,7 +22,7 @@
         @click="showCreate = true"
         class="flex items-center gap-1 rounded-full bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
       >
-        Create Container <Icon icon="carbon:add" width="20" height="20" />
+        Create Service <Icon icon="carbon:add" width="20" height="20" />
       </button>
       <div class="flex items-center gap-1">
         <button
@@ -70,7 +70,7 @@
     </div>
 
     <div v-else-if="serviceStore.services.length === 0 && !loading" class="mt-12 flex flex-col items-center justify-center text-neutral-500">
-      <p>No services yet. Click "Create Container" above to get started.</p>
+      <p>No services yet. Click "Create Service" above to get started.</p>
     </div>
 
     <div v-else-if="filteredServices.length === 0" class="mt-12 flex flex-col items-center justify-center text-neutral-500">

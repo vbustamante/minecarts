@@ -75,9 +75,8 @@
           <!-- Variables tab -->
           <div v-else-if="panelTab === 'variables'" class="flex-1 flex flex-col overflow-y-auto">
             <div class="mb-3 flex items-start justify-between gap-2">
-              <div class="flex-1 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
-              Variables can reference other variables using <code v-pre class="rounded bg-indigo-100 px-1 font-mono dark:bg-indigo-900">${{NAMESPACE.VAR}}</code> syntax.
-              <a href="https://docs.railway.com/variables/reference#template-syntax" target="_blank" class="underline hover:text-indigo-600 dark:hover:text-indigo-200">Learn more</a>
+              <div class="flex-1 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                Changing variables will redeploy services!
               </div>
               <button
                 @click="showAddVariable = true"
