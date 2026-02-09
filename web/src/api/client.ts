@@ -3,7 +3,7 @@ import { useAuthStore } from "../stores";
 import router from "../router";
 
 const client = axios.create({
-  baseURL: "/api",
+  baseURL: import.meta.env.VITE_API_URL || "/api",
 });
 
 const skipInterceptor = new Set(["/auth/me", "/auth/logout"]);
