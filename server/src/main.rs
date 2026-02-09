@@ -46,11 +46,13 @@ async fn main() {
 
     let redis_client = redis::Client::open(config.redis_url.as_str())
         .expect("Invalid REDIS_URL");
+    println!("Getting redis connection");
     let redis_conn = redis_client
         .get_connection_manager()
         .await
         .expect("Failed to connect to Redis");
 
+    println!("Instantiating state");
     let state = Arc::new(AppState::new(config, redis_conn));
 
     let variables_router = Router::new()
