@@ -61,7 +61,8 @@ pub async fn callback(
     let cookie = Cookie::build((SESSION_COOKIE, session_id.to_string()))
         .path("/")
         .http_only(true)
-        .same_site(axum_extra::extract::cookie::SameSite::Lax);
+        .secure(true)
+        .same_site(axum_extra::extract::cookie::SameSite::None);
 
     Ok((jar.add(cookie), Redirect::to(&state.frontend_url)))
 }
@@ -73,7 +74,7 @@ pub async fn me(UserSession(session): UserSession) -> Json<RailwayUser> {
 pub async fn logout(
     State(state): State<SharedState>,
     jar: CookieJar,
-) -> (CookieJar, Redirect) {
+) -> (CookieJar, Json<serde_json::Value>) {
     if let Some(cookie) = jar.get(SESSION_COOKIE) {
         if let Ok(session_id) = cookie.value().parse::<Uuid>() {
             let key = format!("session:{session_id}");
@@ -85,7 +86,9 @@ pub async fn logout(
     let removal = Cookie::build((SESSION_COOKIE, ""))
         .path("/")
         .http_only(true)
+        .secure(true)
+        .same_site(axum_extra::extract::cookie::SameSite::None)
         .removal();
 
-    (jar.remove(removal), Redirect::to(&state.frontend_url))
+    (jar.remove(removal), Json(serde_json::json!({"ok": true})))
 }

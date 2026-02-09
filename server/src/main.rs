@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::routing::{get, post, put};
+use tower_http::cors::CorsLayer;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 use state::{AppState, OAuthConfig};
@@ -72,6 +73,20 @@ async fn main() {
         .route("/{service_id}", put(routes::services::update).delete(routes::services::delete))
         .nest("/{service_id}/variables", variables_router);
 
+    let cors = CorsLayer::new()
+        .allow_origin(
+            state.frontend_url.parse::<axum::http::HeaderValue>()
+                .expect("FRONTEND_URL must be a valid header value"),
+        )
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::PUT,
+            axum::http::Method::DELETE,
+        ])
+        .allow_headers([axum::http::header::CONTENT_TYPE])
+        .allow_credentials(true);
+
     let app = Router::new()
         .route("/", get(|| async { "hello from minecarts server" }))
         .route("/projects", get(routes::projects::list))
@@ -85,6 +100,7 @@ async fn main() {
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
+        .layer(cors)
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(&server_host).await.unwrap();
