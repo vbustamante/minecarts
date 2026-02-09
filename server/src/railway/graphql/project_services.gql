@@ -1,32 +1,29 @@
 query project($id: String!) {
     project(id: $id) {
-        services {
-            edges {
-                node {
-                    id
-                    name
-                    icon
-                    createdAt
-                    updatedAt
-                    projectId
-                }
-            }
-        }
         environments {
             edges {
                 node{
                     id
                     name
-                    deployments {
+                    serviceInstances {
                         edges {
                             node {
                                 serviceId
-                                createdAt
-                                status
-                                instances {
-                                    id
+                                serviceName
+                                service {
+                                    icon
+                                    projectId
                                 }
-                                meta
+                                createdAt
+                                updatedAt
+                                latestDeployment {
+                                    id
+                                    status
+                                    meta
+                                    instances {
+                                        id
+                                    }
+                                }
                             }
                         }
                     }

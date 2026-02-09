@@ -1,7 +1,19 @@
 <template>
   <div v-if="!projectsStore.selectedProjectId" class="flex flex-col min-h-[60vh] items-center justify-center gap-4">
-    <h2 class="mb-4 text-xl font-semibold">Select a Railway project to get started:</h2>
-    <ProjectPicker />
+    <template v-if="projectsStore.fetched && projectsStore.projects.length === 0">
+      <div class="rounded-lg bg-red-500/10 border border-red-500/30 px-6 py-4 text-red-400 text-center max-w-md">
+        <p class="font-semibold mb-2">No Railway projects found</p>
+        <p class="text-sm">
+          You need to create a project on Railway first. Go to
+          <a href="https://railway.com/new" target="_blank" rel="noopener noreferrer" class="underline text-red-300 hover:text-red-200">railway.com/new</a>
+          and select "Empty Project", then come back to this page.
+        </p>
+      </div>
+    </template>
+    <template v-else-if="projectsStore.fetched">
+      <h2 class="mb-4 text-xl font-semibold">Select a Railway project to get started:</h2>
+      <ProjectPicker />
+    </template>
   </div>
 
   <div v-else>
@@ -10,7 +22,7 @@
         @click="showCreate = true"
         class="flex items-center gap-1 rounded-full bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
       >
-        Create Container <Icon icon="carbon:add" width="20" height="20" />
+        Create Service <Icon icon="carbon:add" width="20" height="20" />
       </button>
       <div class="flex items-center gap-1">
         <button
@@ -58,7 +70,7 @@
     </div>
 
     <div v-else-if="serviceStore.services.length === 0 && !loading" class="mt-12 flex flex-col items-center justify-center text-neutral-500">
-      <p>No services yet. Click "Create Container" above to get started.</p>
+      <p>No services yet. Click "Create Service" above to get started.</p>
     </div>
 
     <div v-else-if="filteredServices.length === 0" class="mt-12 flex flex-col items-center justify-center text-neutral-500">

@@ -8,7 +8,7 @@
       leave-from-class="translate-x-0"
       leave-to-class="translate-x-full"
     >
-      <div v-if="service" class="fixed top-12 right-0 bottom-0 z-40 w-full max-w-md rounded-tl-xl border-l border-t border-neutral-700 bg-neutral-50 shadow-xl dark:bg-neutral-800">
+      <div v-if="service" class="fixed top-12 right-0 bottom-0 z-40 w-full max-w-xl rounded-tl-xl border-l border-t border-neutral-700 bg-neutral-50 shadow-xl dark:bg-neutral-800">
         <div class="flex h-full flex-col p-6">
           <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-2">
@@ -33,6 +33,16 @@
               class="px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors hover:cursor-pointer"
               :class="panelTab === 'variables' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
             >Variables <span v-if="variableCount !== null" class="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-100 px-1 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">{{ variableCount > 9 ? '9+' : variableCount }}</span><Icon v-else icon="carbon:renew" width="12" height="12" class="ml-1 inline animate-spin text-neutral-400" /></div>
+            <div
+              @click="panelTab = 'build-logs'"
+              class="px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors hover:cursor-pointer"
+              :class="panelTab === 'build-logs' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+            >Build Logs</div>
+            <div
+              @click="panelTab = 'deploy-logs'"
+              class="px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors hover:cursor-pointer"
+              :class="panelTab === 'deploy-logs' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+            >Deploy Logs</div>
           </div>
 
           <!-- Details tab -->
@@ -60,9 +70,6 @@
               <dt class="text-neutral-500">Image</dt>
               <dd v-if="service.deployment.image" class="font-mono truncate">{{ service.deployment.image }}</dd>
               <dd v-else class="text-neutral-400">None</dd>
-
-              <dt class="text-neutral-500">Instances</dt>
-              <dd>{{ service.deployment.instances.length }}</dd>
             </template>
 
             <dt class="text-neutral-500">Created</dt>
@@ -75,9 +82,8 @@
           <!-- Variables tab -->
           <div v-else-if="panelTab === 'variables'" class="flex-1 flex flex-col overflow-y-auto">
             <div class="mb-3 flex items-start justify-between gap-2">
-              <div class="flex-1 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
-              Variables can reference other variables using <code v-pre class="rounded bg-indigo-100 px-1 font-mono dark:bg-indigo-900">${{NAMESPACE.VAR}}</code> syntax.
-              <a href="https://docs.railway.com/variables/reference#template-syntax" target="_blank" class="underline hover:text-indigo-600 dark:hover:text-indigo-200">Learn more</a>
+              <div class="flex-1 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                Changing variables will redeploy services!
               </div>
               <button
                 @click="showAddVariable = true"
@@ -127,6 +133,26 @@
               @confirm="removeVariable"
             />
           </div>
+
+          <!-- Build Logs tab -->
+          <div v-else-if="panelTab === 'build-logs'" class="flex-1 flex flex-col overflow-hidden">
+            <div v-if="!service.deployment" class="text-sm text-neutral-500 text-center">No deployment</div>
+            <div v-else-if="buildLogsLoading && buildLogs.length === 0" class="flex items-center gap-2 text-sm text-neutral-500">
+              <Icon icon="carbon:renew" width="16" height="16" class="animate-spin" /> Loading build logs...
+            </div>
+            <div v-else-if="buildLogs.length === 0" class="text-sm text-neutral-500 text-center">No logs yet</div>
+            <pre v-else ref="buildLogsContainer" class="flex-1 overflow-y-auto rounded-lg bg-neutral-900 p-3 text-xs leading-5 text-neutral-200 font-mono whitespace-pre-wrap break-all">{{ buildLogs.join('\n') }}</pre>
+          </div>
+
+          <!-- Deploy Logs tab -->
+          <div v-else-if="panelTab === 'deploy-logs'" class="flex-1 flex flex-col overflow-hidden">
+            <div v-if="!service.deployment" class="text-sm text-neutral-500 text-center">No deployment</div>
+            <div v-else-if="deployLogsLoading && deployLogs.length === 0" class="flex items-center gap-2 text-sm text-neutral-500">
+              <Icon icon="carbon:renew" width="16" height="16" class="animate-spin" /> Loading deploy logs...
+            </div>
+            <div v-else-if="deployLogs.length === 0" class="text-sm text-neutral-500 text-center">No logs yet</div>
+            <pre v-else ref="deployLogsContainer" class="flex-1 overflow-y-auto rounded-lg bg-neutral-900 p-3 text-xs leading-5 text-neutral-200 font-mono whitespace-pre-wrap break-all">{{ deployLogs.join('\n') }}</pre>
+          </div>
         </div>
       </div>
     </Transition>
@@ -134,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, Transition, Teleport, watch, onUnmounted } from "vue";
+import { computed, ref, Transition, Teleport, watch, onUnmounted, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Icon } from "@iconify/vue";
 import AddVariableModal from "./modals/AddVariableModal.vue";
@@ -142,6 +168,7 @@ import ConfirmDeleteModal from "./modals/ConfirmDeleteModal.vue";
 import EditVariableModal from "./modals/EditVariableModal.vue";
 import { useProjectStore, useServiceStore, useVariableStore } from "../stores";
 import { formatDate } from "../helpers";
+import { fetchBuildLogs, fetchDeploymentLogs } from "../api/logs";
 
 const route = useRoute();
 const router = useRouter();
@@ -154,7 +181,7 @@ const service = computed(() => {
   return id ? serviceStore.servicesById[id] ?? null : null;
 });
 
-const panelTab = ref<"details" | "variables">("details");
+const panelTab = ref<"details" | "variables" | "build-logs" | "deploy-logs">("details");
 const showAddVariable = ref(false);
 const editingVariable = ref<{ name: string; value: string } | null>(null);
 
@@ -218,9 +245,104 @@ function stopVariablePolling() {
   }
 }
 
+// --- Log state ---
+const buildLogs = ref<string[]>([]);
+const deployLogs = ref<string[]>([]);
+const buildLogsLoading = ref(false);
+const deployLogsLoading = ref(false);
+const buildLogsContainer = ref<HTMLPreElement | null>(null);
+const deployLogsContainer = ref<HTMLPreElement | null>(null);
+
+const TERMINAL_STATUSES = new Set(["CRASHED", "FAILED", "REMOVED"]);
+
+async function loadBuildLogs() {
+  const s = service.value;
+  if (!s?.deployment || !projectsStore.selectedProjectId) return;
+  buildLogsLoading.value = true;
+  try {
+    const entries = await fetchBuildLogs(projectsStore.selectedProjectId, s.id, s.deployment.id);
+    buildLogs.value = entries.map((e) => e.message);
+    await nextTick();
+    if (buildLogsContainer.value) {
+      buildLogsContainer.value.scrollTop = buildLogsContainer.value.scrollHeight;
+    }
+  } catch {
+    // silently ignore poll errors
+  } finally {
+    buildLogsLoading.value = false;
+  }
+}
+
+async function loadDeployLogs() {
+  const s = service.value;
+  if (!s?.deployment || !projectsStore.selectedProjectId) return;
+  deployLogsLoading.value = true;
+  try {
+    const entries = await fetchDeploymentLogs(projectsStore.selectedProjectId, s.id, s.deployment.id);
+    deployLogs.value = entries.map((e) => e.message);
+    await nextTick();
+    if (deployLogsContainer.value) {
+      deployLogsContainer.value.scrollTop = deployLogsContainer.value.scrollHeight;
+    }
+  } catch {
+    // silently ignore poll errors
+  } finally {
+    deployLogsLoading.value = false;
+  }
+}
+
+const shouldPollLogs = computed(() => {
+  const s = service.value;
+  if (!s?.deployment) return false;
+  const status = s.deployment.status;
+  return status && !TERMINAL_STATUSES.has(status);
+});
+
+let logPollTimer: ReturnType<typeof setInterval> | null = null;
+
+function startLogPolling() {
+  stopLogPolling();
+  const tab = panelTab.value;
+  if (tab !== "build-logs" && tab !== "deploy-logs") return;
+  if (!service.value?.deployment) return;
+
+  const fetchFn = tab === "build-logs" ? loadBuildLogs : loadDeployLogs;
+  fetchFn();
+
+  if (shouldPollLogs.value) {
+    logPollTimer = setInterval(fetchFn, 5_000);
+  }
+}
+
+function stopLogPolling() {
+  if (logPollTimer !== null) {
+    clearInterval(logPollTimer);
+    logPollTimer = null;
+  }
+}
+
+// Watch tab changes to start/stop log polling and make it poll the right logs
+watch(panelTab, () => {
+  stopLogPolling();
+  if (panelTab.value === "build-logs" || panelTab.value === "deploy-logs") {
+    startLogPolling();
+  }
+});
+
+// Watch deployment status to stop polling on terminal statuses
+watch(shouldPollLogs, (canPoll) => {
+  if (!canPoll) {
+    stopLogPolling();
+  }
+});
+
+// State reset when service changes
 watch(() => service.value?.id, (newId, oldId) => {
   if (newId !== oldId) {
     panelTab.value = "details";
+    buildLogs.value = [];
+    deployLogs.value = [];
+    stopLogPolling();
     if (newId) {
       startVariablePolling();
     } else {
@@ -229,7 +351,10 @@ watch(() => service.value?.id, (newId, oldId) => {
   }
 }, { immediate: true });
 
-onUnmounted(stopVariablePolling);
+onUnmounted(() => {
+  stopVariablePolling();
+  stopLogPolling();
+});
 
 function close() {
   router.push({ name: "project", params: { projectId: projectsStore.selectedProjectId! } });

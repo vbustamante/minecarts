@@ -7,7 +7,7 @@ use crate::state::OAuthConfig;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RailwayUser {
     pub sub: String,
-    pub name: String,
+    pub name: Option<String>,
     pub picture: Option<String>,
     pub email: String,
     pub email_verified: bool,

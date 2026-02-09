@@ -1,4 +1,5 @@
 export interface DeploymentInfo {
+  id: string;
   status: string | null;
   instances: { id: string }[];
   image?: string;
