@@ -70,9 +70,6 @@
               <dt class="text-neutral-500">Image</dt>
               <dd v-if="service.deployment.image" class="font-mono truncate">{{ service.deployment.image }}</dd>
               <dd v-else class="text-neutral-400">None</dd>
-
-              <dt class="text-neutral-500">Instances</dt>
-              <dd>{{ service.deployment.instances.length }}</dd>
             </template>
 
             <dt class="text-neutral-500">Created</dt>
