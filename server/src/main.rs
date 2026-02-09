@@ -66,10 +66,15 @@ async fn main() {
     let variables_router = Router::new()
         .route("/", get(routes::variables::list).put(routes::variables::upsert).delete(routes::variables::delete));
 
+    let logs_router = Router::new()
+        .route("/build", get(routes::logs::build_logs))
+        .route("/deploy", get(routes::logs::deployment_logs));
+
     let services_router = Router::new()
         .route("/", get(routes::services::list).post(routes::services::create))
         .route("/{service_id}", put(routes::services::update).delete(routes::services::delete))
-        .nest("/{service_id}/variables", variables_router);
+        .nest("/{service_id}/variables", variables_router)
+        .nest("/{service_id}/deployments/{deployment_id}/logs", logs_router);
 
     let cors = CorsLayer::new()
         .allow_origin(

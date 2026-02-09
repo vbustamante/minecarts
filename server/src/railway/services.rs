@@ -30,6 +30,7 @@ pub struct ServiceWithDeployment {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeploymentInfo {
+    pub id: String,
     pub status: Option<String>,
     pub instances: Vec<Instance>,
     pub image: Option<String>,
@@ -53,6 +54,7 @@ struct GqlDeploymentMeta {
 
 #[derive(Deserialize)]
 struct GqlDeployment {
+    id: String,
     status: Option<String>,
     instances: Vec<Instance>,
     meta: Option<GqlDeploymentMeta>,
@@ -185,6 +187,7 @@ impl RailwayService {
                         .unwrap_or_default();
 
                     DeploymentInfo {
+                        id: d.id,
                         status: d.status,
                         instances: d.instances,
                         image,
