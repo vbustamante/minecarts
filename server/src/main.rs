@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::routing::{get, post, put};
+use tower_http::trace::TraceLayer;
 use state::{AppState, OAuthConfig};
 
 #[derive(Debug)]
@@ -39,20 +40,24 @@ impl ServiceConfig {
 
 #[tokio::main]
 async fn main() {
-    println!("Will start server");
+    tracing_subscriber::fmt()
+        .with_target(false)
+        .init();
+    tracing::info!("Booted up");
+
     let _ = dotenvy::from_filename(".env");
     let config = ServiceConfig::from_env();
     let server_host = config.server_host.clone();
 
     let redis_client = redis::Client::open(config.redis_url.as_str())
         .expect("Invalid REDIS_URL");
-    println!("Getting redis connection");
+    tracing::info!("Getting redis connection");
     let redis_conn = redis_client
         .get_connection_manager()
         .await
         .expect("Failed to connect to Redis");
 
-    println!("Instantiating state");
+    tracing::info!("Instantiating state");
     let state = Arc::new(AppState::new(config, redis_conn));
 
     let variables_router = Router::new()
@@ -64,15 +69,17 @@ async fn main() {
         .nest("/{service_id}/variables", variables_router);
 
     let app = Router::new()
+        .route("/", get(|| async { "hello from minecarts server" }))
         .route("/projects", get(routes::projects::list))
         .nest("/projects/{project_id}/services", services_router)
         .route("/auth/login", get(routes::auth::login))
         .route("/auth/callback", get(routes::auth::callback))
         .route("/auth/me", get(routes::auth::me))
         .route("/auth/logout", post(routes::auth::logout))
+        .layer(TraceLayer::new_for_http())
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(&server_host).await.unwrap();
-    println!("Server running on http://{server_host}");
+    tracing::info!("Server running on http://{server_host}");
     axum::serve(listener, app).await.unwrap();
 }
