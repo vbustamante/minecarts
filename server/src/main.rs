@@ -46,7 +46,6 @@ impl ServiceConfig {
 
 #[tokio::main]
 async fn main() {
-    println!("hm");
     tracing_subscriber::fmt()
         .with_target(false)
         .init();

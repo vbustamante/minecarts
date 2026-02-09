@@ -11,8 +11,10 @@ use crate::railway::auth::{self as railway_auth, RailwayUser};
 use crate::state::SharedState;
 
 pub async fn login(State(state): State<SharedState>) -> Redirect {
+    tracing::info!("Generating CSRF state");
     let csrf_state = Uuid::new_v4().to_string();
     state.csrf_states.write().await.insert(csrf_state.clone());
+    tracing::info!("Wrote to states object");
 
     let url = railway_auth::build_auth_url(&state.oauth_config, &csrf_state, true);
     Redirect::to(&url)
