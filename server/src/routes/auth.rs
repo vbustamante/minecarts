@@ -20,8 +20,10 @@ pub async fn login(State(state): State<SharedState>) -> Redirect {
 
 #[derive(Deserialize, Debug)]
 pub struct CallbackParams {
-    code: String,
     state: String,
+    code: Option<String>,
+    error: Option<String>,
+    error_description: Option<String>,
 }
 
 pub async fn callback(
@@ -34,9 +36,25 @@ pub async fn callback(
         return Err(AppError::BadRequest("Invalid CSRF state".into()));
     }
 
+    // Handle OAuth error response
+    if let Some(error) = params.error {
+        let message = params.error_description.unwrap_or_default();
+        let redirect_url = format!(
+            "{}/login?error={}&error_message={}",
+            state.frontend_url,
+            urlencoding::encode(&error),
+            urlencoding::encode(&message),
+        );
+        return Ok(Redirect::to(&redirect_url));
+    }
+
+    let code = params.code.ok_or_else(|| {
+        AppError::BadRequest("Missing authorization code".into())
+    })?;
+
     let client = reqwest::Client::new();
 
-    let railway_auth = railway_auth::exchange_code(&client, &state.oauth_config, &params.code)
+    let railway_auth = railway_auth::exchange_code(&client, &state.oauth_config, &code)
         .await?;
 
     let user = railway_auth::fetch_user(&client, &railway_auth.access_token)
