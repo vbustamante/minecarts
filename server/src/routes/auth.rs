@@ -1,7 +1,6 @@
 use axum::extract::{Query, State};
 use axum::http::HeaderMap;
 use axum::response::{Json, Redirect};
-use redis::AsyncCommands;
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -49,13 +48,7 @@ pub async fn callback(
         user,
         railway_auth,
     };
-    let session_json = serde_json::to_string(&session)?;
-
-    let key = format!("session:{session_id}");
-    let mut redis = state.redis.clone();
-    let _ : () = redis
-        .set(&key, &session_json)
-        .await?;
+    state.sessions.set(session_id, &session).await?;
 
     let redirect_url = format!("{}?session_id={}", state.frontend_url, session_id);
     Ok(Redirect::to(&redirect_url))
@@ -68,18 +61,16 @@ pub async fn me(UserSession(session): UserSession) -> Json<RailwayUser> {
 pub async fn logout(
     State(state): State<SharedState>,
     headers: HeaderMap,
-) -> Json<serde_json::Value> {
+) -> Result<(), AppError> {
     if let Some(auth_header) = headers
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
     {
         if let Ok(session_id) = auth_header.parse::<Uuid>() {
-            let key = format!("session:{session_id}");
-            let mut redis = state.redis.clone();
-            let _: () = redis.del(&key).await.unwrap_or(());
+            state.sessions.delete(session_id).await?;
         }
     }
 
-    Json(serde_json::json!({"ok": true}))
+    Ok(())
 }

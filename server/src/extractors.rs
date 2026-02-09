@@ -2,7 +2,6 @@ use axum::extract::FromRequestParts;
 use axum::http::StatusCode;
 use axum::http::request::Parts;
 use chrono::{Duration, Utc};
-use redis::AsyncCommands;
 use uuid::Uuid;
 
 use crate::models::Session;
@@ -26,16 +25,12 @@ impl FromRequestParts<SharedState> for UserSession {
 
         let session_id: Uuid = auth_header.parse().map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-        let key = format!("session:{session_id}");
-        let mut redis = state.redis.clone();
-
-        let session_json: String = redis
-            .get(&key)
+        let session = state
+            .sessions
+            .get(session_id)
             .await
-            .map_err(|_| StatusCode::UNAUTHORIZED)?;
-
-        let session: Session =
-            serde_json::from_str(&session_json).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            .map_err(|_| StatusCode::UNAUTHORIZED)?
+            .ok_or(StatusCode::UNAUTHORIZED)?;
 
         if session.railway_auth.expires_on < Utc::now() + Duration::minutes(5) {
             let client = reqwest::Client::new();
@@ -51,10 +46,9 @@ impl FromRequestParts<SharedState> for UserSession {
                 user: session.user,
                 railway_auth: new_auth,
             };
-            let json = serde_json::to_string(&updated_session)
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            let _: () = redis
-                .set(&key, &json)
+            state
+                .sessions
+                .set(session_id, &updated_session)
                 .await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 

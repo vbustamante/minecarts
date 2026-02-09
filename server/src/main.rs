@@ -2,6 +2,7 @@ mod error;
 mod extractors;
 mod models;
 mod railway;
+mod session_store;
 mod routes;
 mod state;
 
@@ -54,16 +55,13 @@ async fn main() {
     let config = ServiceConfig::from_env();
     let server_host = config.server_host.clone();
 
-    let redis_client = redis::Client::open(config.redis_url.as_str())
-        .expect("Invalid REDIS_URL");
-    tracing::info!("Getting redis connection");
-    let redis_conn = redis_client
-        .get_connection_manager()
+    tracing::info!("Connecting to Redis");
+    let sessions = session_store::SessionStore::connect(&config.redis_url)
         .await
         .expect("Failed to connect to Redis");
 
     tracing::info!("Instantiating state");
-    let state = Arc::new(AppState::new(config, redis_conn));
+    let state = Arc::new(AppState::new(config, sessions));
 
     let variables_router = Router::new()
         .route("/", get(routes::variables::list).put(routes::variables::upsert).delete(routes::variables::delete));

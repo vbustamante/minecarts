@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use redis::aio::ConnectionManager;
 use tokio::sync::RwLock;
 
 use crate::ServiceConfig;
+use crate::session_store::SessionStore;
 
 pub type SharedState = Arc<AppState>;
 
@@ -16,16 +16,16 @@ pub struct OAuthConfig {
 }
 
 pub struct AppState {
-    pub redis: ConnectionManager,
+    pub sessions: SessionStore,
     pub csrf_states: RwLock<HashSet<String>>,
     pub oauth_config: OAuthConfig,
     pub frontend_url: String,
 }
 
 impl AppState {
-    pub fn new(config: ServiceConfig, redis: ConnectionManager) -> Self {
+    pub fn new(config: ServiceConfig, sessions: SessionStore) -> Self {
         Self {
-            redis,
+            sessions,
             csrf_states: RwLock::new(HashSet::new()),
             oauth_config: config.oauth,
             frontend_url: config.frontend_url,
