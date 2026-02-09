@@ -7,7 +7,7 @@ export interface User {
   picture?: string | null;
 }
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
+const baseUrl = import.meta.env.VITE_API_URL || "/api";
 export const loginUrl = `${baseUrl}/auth/login`;
 
 export async function fetchMe(): Promise<User | null> {
