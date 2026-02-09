@@ -256,16 +256,7 @@ const deployLogsLoading = ref(false);
 const buildLogsContainer = ref<HTMLPreElement | null>(null);
 const deployLogsContainer = ref<HTMLPreElement | null>(null);
 
-let logPollTimer: ReturnType<typeof setInterval> | null = null;
-
 const TERMINAL_STATUSES = new Set(["CRASHED", "FAILED", "REMOVED"]);
-
-const shouldPollLogs = computed(() => {
-  const s = service.value;
-  if (!s?.deployment) return false;
-  const status = s.deployment.status;
-  return !(status && TERMINAL_STATUSES.has(status));
-});
 
 async function loadBuildLogs() {
   const s = service.value;
@@ -303,6 +294,15 @@ async function loadDeployLogs() {
   }
 }
 
+const shouldPollLogs = computed(() => {
+  const s = service.value;
+  if (!s?.deployment) return false;
+  const status = s.deployment.status;
+  return status && !TERMINAL_STATUSES.has(status);
+});
+
+let logPollTimer: ReturnType<typeof setInterval> | null = null;
+
 function startLogPolling() {
   stopLogPolling();
   const tab = panelTab.value;
@@ -324,7 +324,7 @@ function stopLogPolling() {
   }
 }
 
-// Watch tab changes to start/stop log polling
+// Watch tab changes to start/stop log polling and make it poll the right logs
 watch(panelTab, () => {
   stopLogPolling();
   if (panelTab.value === "build-logs" || panelTab.value === "deploy-logs") {
@@ -339,6 +339,7 @@ watch(shouldPollLogs, (canPoll) => {
   }
 });
 
+// State reset when service changes
 watch(() => service.value?.id, (newId, oldId) => {
   if (newId !== oldId) {
     panelTab.value = "details";
