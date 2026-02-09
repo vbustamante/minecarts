@@ -63,7 +63,7 @@ pub async fn callback(
         .http_only(true)
         .same_site(axum_extra::extract::cookie::SameSite::Lax);
 
-    Ok((jar.add(cookie), Redirect::to("/")))
+    Ok((jar.add(cookie), Redirect::to(&state.frontend_url)))
 }
 
 pub async fn me(UserSession(session): UserSession) -> Json<RailwayUser> {
@@ -87,5 +87,5 @@ pub async fn logout(
         .http_only(true)
         .removal();
 
-    (jar.remove(removal), Redirect::to("/"))
+    (jar.remove(removal), Redirect::to(&state.frontend_url))
 }

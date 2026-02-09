@@ -19,6 +19,7 @@ pub struct AppState {
     pub redis: ConnectionManager,
     pub csrf_states: RwLock<HashSet<String>>,
     pub oauth_config: OAuthConfig,
+    pub frontend_url: String,
 }
 
 impl AppState {
@@ -27,6 +28,7 @@ impl AppState {
             redis,
             csrf_states: RwLock::new(HashSet::new()),
             oauth_config: config.oauth,
+            frontend_url: config.frontend_url,
         }
     }
 }

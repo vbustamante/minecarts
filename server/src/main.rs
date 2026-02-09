@@ -18,6 +18,7 @@ pub struct ServiceConfig {
     pub server_host: String,
     pub redis_url: String,
     pub oauth: OAuthConfig,
+    pub frontend_url: String,
 }
 
 impl ServiceConfig {
@@ -35,6 +36,8 @@ impl ServiceConfig {
                 redirect_uri: std::env::var("RAILWAY_REDIRECT_URI")
                     .unwrap_or_else(|_| "http://localhost:5173/api/auth/callback".to_string()),
             },
+            frontend_url: std::env::var("FRONTEND_URL")
+                .unwrap_or_else(|_| "http://localhost:5173".to_string()),
         }
     }
 }
