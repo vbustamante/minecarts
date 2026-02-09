@@ -9,7 +9,8 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::routing::{get, post, put};
-use tower_http::trace::TraceLayer;
+use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+use tracing::Level;
 use state::{AppState, OAuthConfig};
 
 #[derive(Debug)]
@@ -76,7 +77,11 @@ async fn main() {
         .route("/auth/callback", get(routes::auth::callback))
         .route("/auth/me", get(routes::auth::me))
         .route("/auth/logout", post(routes::auth::logout))
-        .layer(TraceLayer::new_for_http())
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                .on_response(DefaultOnResponse::new().level(Level::INFO)),
+        )
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(&server_host).await.unwrap();
